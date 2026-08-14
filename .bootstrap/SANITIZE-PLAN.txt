@@ -1,0 +1,1 @@
+If bootstrap reconstruction is retried, fragments should be concatenated after filtering to the Base64 alphabet only. SHA-256 remains the authoritative integrity check.
