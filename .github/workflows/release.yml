@@ -1,0 +1,140 @@
+name: Google Books OMP Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.release-trigger-*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(sed -n 's:.*<release>\([^<]*\)</release>.*:\1:p' version.xml | head -n1)
+          test -n "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          test -f ".release-trigger-v$VERSION"
+
+      - name: Ensure release does not already exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! git rev-parse -q --verify "refs/tags/${{ steps.version.outputs.tag }}"
+          ! gh release view "${{ steps.version.outputs.tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1
+
+      - name: Install validation dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y php-cli php-sqlite3 php-xml php-mbstring php-curl python3-lxml
+
+      - name: Validate source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash tests/run_all.sh
+
+      - name: Build and revalidate release archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION='${{ steps.version.outputs.version }}'
+          rm -rf /tmp/googleBooks-release /tmp/googleBooks-zip-check /tmp/googleBooks-tar-check
+          mkdir -p /tmp/googleBooks-release/googleBooks
+          tar --exclude='./.git' --exclude='./.github' --exclude='./.release-trigger-*' -cf - . | tar -xf - -C /tmp/googleBooks-release/googleBooks
+          cd /tmp/googleBooks-release
+          zip -q -X -r "/tmp/googleBooks-$VERSION.zip" googleBooks
+          tar -czf "/tmp/googleBooks-$VERSION.tar.gz" googleBooks
+          {
+            sha256sum "/tmp/googleBooks-$VERSION.zip"
+            sha256sum "/tmp/googleBooks-$VERSION.tar.gz"
+          } | sed 's#/tmp/##' > "/tmp/googleBooks-$VERSION-SHA256.txt"
+
+          mkdir -p /tmp/googleBooks-zip-check /tmp/googleBooks-tar-check
+          unzip -q "/tmp/googleBooks-$VERSION.zip" -d /tmp/googleBooks-zip-check
+          tar -xzf "/tmp/googleBooks-$VERSION.tar.gz" -C /tmp/googleBooks-tar-check
+          cd /tmp/googleBooks-zip-check/googleBooks
+          bash tests/run_all.sh
+          cd /tmp/googleBooks-tar-check/googleBooks
+          bash tests/run_all.sh
+          diff -qr /tmp/googleBooks-zip-check/googleBooks /tmp/googleBooks-tar-check/googleBooks
+
+          ! grep -RIE 'PAD1UN1|9UPS0KG|publicar\.claec\.org|press\.scientia\.international|AIza[0-9A-Za-z_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' /tmp/googleBooks-zip-check/googleBooks
+
+      - name: Remove release trigger and commit clean release source
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION='${{ steps.version.outputs.version }}'
+          rm -f ".release-trigger-v$VERSION"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m "Prepare Google Books OMP release v$VERSION"
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Create annotated tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git tag -a '${{ steps.version.outputs.tag }}' '${{ steps.commit.outputs.sha }}' -m 'Google Books Integration for OMP ${{ steps.version.outputs.version }}'
+          git push origin '${{ steps.version.outputs.tag }}'
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION='${{ steps.version.outputs.version }}'
+          gh release create '${{ steps.version.outputs.tag }}' \
+            "/tmp/googleBooks-$VERSION.zip" \
+            "/tmp/googleBooks-$VERSION.tar.gz" \
+            "/tmp/googleBooks-$VERSION-SHA256.txt" \
+            --repo '${{ github.repository }}' \
+            --verify-tag \
+            --title "Google Books Integration for OMP $VERSION" \
+            --notes "Validated maintenance release for Google Books / Google Play Books integration with Open Monograph Press 3.5.x. See CHANGELOG.md and VALIDATION.md for the complete release-specific changes and validation scope."
+
+      - name: Improve repository topics when permitted
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          gh api --method PUT "repos/${{ github.repository }}/topics" \
+            -H 'Accept: application/vnd.github+json' \
+            -f 'names[]=omp' \
+            -f 'names[]=open-monograph-press' \
+            -f 'names[]=pkp' \
+            -f 'names[]=google-books' \
+            -f 'names[]=google-play-books' \
+            -f 'names[]=onix' \
+            -f 'names[]=onix-3' \
+            -f 'names[]=academic-publishing' \
+            -f 'names[]=open-source' \
+            -f 'names[]=php'
+          if [ "$?" -ne 0 ]; then
+            echo 'Repository topics could not be changed with the workflow token; release remains valid.'
+          fi
