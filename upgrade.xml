@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE install SYSTEM "../../../lib/pkp/dtd/install.dtd">
+<install>
+    <!--
+      PluginHelper::upgradePlugin() only executes database migrations declared
+      in upgrade.xml. getInstallMigration() is used by the install descriptor,
+      but is not enough for in-place plugin upgrades. This idempotent migration
+      repairs historical Google Books schema versions, adds current delivery state, and can safely be re-run.
+    -->
+    <migration class="APP\plugins\generic\googleBooks\classes\Migration\GoogleBooksSchemaMigration" />
+</install>
