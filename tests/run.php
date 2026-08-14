@@ -571,15 +571,29 @@ check(str_contains($dashboardSource, 'persistApiSettings') && str_contains($dash
 $migrationSource = file_get_contents(dirname(__DIR__) . '/classes/Migration/GoogleBooksSchemaMigration.php');
 check(str_contains($migrationSource, "books_retired"), 'Catalog synchronization history does not record retired products');
 
-$secretKey = 'test-app-key-google-books-0.1.2.0';
+$secretKey = 'test-app-key-google-books-0.1.2.2';
 $encryptedSecret = SecretStore::encrypt("sftp-secret\nwith-lines", $secretKey);
 check(SecretStore::isEncrypted($encryptedSecret), 'Reversible transport secret does not use the versioned encrypted format');
 check($encryptedSecret !== "sftp-secret\nwith-lines", 'Transport secret was stored as plaintext');
 check(SecretStore::decrypt($encryptedSecret, $secretKey) === "sftp-secret\nwith-lines", 'Transport secret encryption round-trip failed');
-$tampered = substr($encryptedSecret, 0, -2) . (substr($encryptedSecret, -1) === 'A' ? 'B' : 'A');
+$tamperPos = strlen('gbsec:v1:') + 8;
+$tampered = substr($encryptedSecret, 0, $tamperPos) . ($encryptedSecret[$tamperPos] === 'A' ? 'B' : 'A') . substr($encryptedSecret, $tamperPos + 1);
 $tamperRejected = false;
 try { SecretStore::decrypt($tampered, $secretKey); } catch (Throwable) { $tamperRejected = true; }
 check($tamperRejected, 'Tampered encrypted transport secret was accepted');
+
+
+$encryptedApiKey = SecretStore::encryptApiKey('AIza-test-key-not-real', $secretKey);
+check(SecretStore::isApiKeyEncrypted($encryptedApiKey), 'Google Books API key does not use its versioned encrypted format');
+check($encryptedApiKey !== 'AIza-test-key-not-real', 'Google Books API key was stored as plaintext');
+check(SecretStore::decryptApiKey($encryptedApiKey, $secretKey) === 'AIza-test-key-not-real', 'Google Books API-key encryption round-trip failed');
+$apiTamperPos = strlen('gbapi:v1:') + 8;
+$apiTampered = substr($encryptedApiKey, 0, $apiTamperPos) . ($encryptedApiKey[$apiTamperPos] === 'A' ? 'B' : 'A') . substr($encryptedApiKey, $apiTamperPos + 1);
+$apiTamperRejected = false;
+try { SecretStore::decryptApiKey($apiTampered, $secretKey); } catch (Throwable) { $apiTamperRejected = true; }
+check($apiTamperRejected, 'Tampered encrypted Google Books API key was accepted');
+check(str_contains($pluginSource, 'getGoogleApiKey') && str_contains($pluginSource, 'setGoogleApiKey') && str_contains($pluginSource, "'googleApiKeyEncrypted'"), 'Plugin API-key encryption accessors are missing');
+check(!str_contains($dashboardSource, "updateSetting(\$contextId, 'googleApiKey', \$newApiKey"), 'Dashboard still persists a new Google Books API key in plaintext');
 
 $modes = DeliveryConfig::modes();
 check($modes === ['http_pull', 'google_sftp', 'publisher_sftp', 'publisher_ftp', 'gcs', 'local_export'], 'Delivery mode registry does not expose the complete supported transport set');

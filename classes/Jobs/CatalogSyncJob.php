@@ -61,7 +61,7 @@ final class CatalogSyncJob extends GoogleBooksJob
         if (
             ($this->force || $result['updated'] > 0) &&
             $plugin->boolSetting($this->contextId, 'autoVerifyGoogle', true) &&
-            trim((string) $plugin->getSetting($this->contextId, 'googleApiKey')) !== ''
+            $plugin->hasGoogleApiKey($this->contextId)
         ) {
             $runAt = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->modify('+6 hours');
             CatalogDiscoveryJob::dispatch($this->contextId, $this->userId)->delay($runAt);

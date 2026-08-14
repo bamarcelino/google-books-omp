@@ -1,3 +1,14 @@
+## 0.1.2.2 - 2026-08-14
+
+- Encrypts the Google Books API key at rest with a dedicated AES-256-GCM envelope (`gbapi:v1`) derived from OMP `general.app_key`, matching the hardening already used for recoverable SFTP/FTP/GCS credentials.
+- Adds backward-compatible migration of pre-0.1.2.2 plaintext `googleApiKey` settings: the legacy value remains readable until encryption succeeds, then the plaintext setting is cleared.
+- Adds an explicit dashboard option to clear the stored Google Books API key without ever rendering the secret back into HTML.
+- Routes discovery, automatic verification and dashboard readiness checks through centralized encrypted API-key accessors rather than reading the legacy plaintext setting directly.
+- Updates the Google Books API User-Agent to `GoogleBooksIntegrationForOMP/0.1.2.2`.
+- Corrects 0.1.2.0 references in the README and documents the encrypted API-key behavior.
+- Adds permanent GitHub Actions CI for pull requests and pushes to `main`, running the complete plugin validation suite on a clean runner.
+- Extends security/package regression coverage to reject plaintext API-key persistence and validate API-key encryption round-trip/tamper handling.
+
 # Changelog
 
 ## 0.1.2.1 - 2026-08-14

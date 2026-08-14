@@ -38,7 +38,7 @@ final class SubmissionDiscoveryJob extends GoogleBooksJob
         if ((int) $submission->getData('status') !== Submission::STATUS_PUBLISHED) {
             return;
         }
-        if (trim((string) $plugin->getSetting($this->contextId, 'googleApiKey')) === '') {
+        if (!$plugin->hasGoogleApiKey($this->contextId)) {
             return;
         }
 

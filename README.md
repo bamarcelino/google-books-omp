@@ -1,7 +1,7 @@
 # Google Books Integration for OMP
 
 
-### 0.1.2.1 dashboard reliability + multi-transport delivery
+### 0.1.2.2 security hardening + multi-transport delivery
 
 This release adds a transport-neutral Google delivery layer and a dedicated dashboard authentication workspace. The plugin can keep Google's HTTP/HTTPS pull model, push to a Google-provided SFTP Dropbox, push to a publisher-controlled SFTP or FTP/FTPS server, stage the same Google directory tree in Google Cloud Storage, or write a protected local export as an operational fallback. Outbound credentials are encrypted reversibly with the OMP application key; the incoming HTTP crawler password remains one-way hashed. Incremental delivery state prevents unchanged files from being retransmitted unnecessarily. Google Books API discovery remains independent from publisher delivery.
 
@@ -12,7 +12,7 @@ Publisher-neutral Google Books / Google Play Books synchronization for **Open Mo
 - License: **GNU GPL v3 or later**
 - Installation directory/product: `googleBooks`
 - Canonical OMP runtime/settings key: `googlebooksplugin`
-- Current release: `0.1.2.1`
+- Current release: `0.1.2.2`
 - Primary compatibility target: **OMP 3.5.0-5 LTS**
 
 ## What the plugin does
@@ -80,7 +80,7 @@ The public Google Books API does not provide a publisher endpoint that uploads a
 1. **Google Books API** - exact discovery and later verification by ISBN.
 2. **Google publisher delivery** - exposes or transfers ONIX, EPUB, PDF and cover assets using the transport selected for the press.
 
-Release 0.1.2.0 supports every server/transport choice exposed by Google's automated-content onboarding form, plus a protected local staging fallback:
+Release 0.1.2.2 supports every server/transport choice exposed by Google's automated-content onboarding form, plus a protected local staging fallback:
 
 - **HTTP/HTTPS pull** - Google fetches the authenticated virtual OMP feed;
 - **Google-provided SFTP Dropbox** - OMP pushes files to the SFTP dropbox credentials supplied by Google;
@@ -257,7 +257,7 @@ The protected local-export fallback is written below OMP's configured private `f
 - the HTTP authentication diagnostic stores only booleans, technical source labels and a timestamp; it never stores or displays the received username, password, Authorization value or password hash;
 - connection/delivery diagnostics redact Authorization/Bearer material and URL userinfo before persistence;
 - Google Cloud Storage writer credentials remain encrypted at rest; the optional Google reader service-account identity is stored as non-secret configuration;
-- the Google Books API key is never rendered back into the settings form after storage;
+- the Google Books API key is encrypted at rest with its own AES-256-GCM envelope derived from OMP `general.app_key`, is never rendered back into the settings form after storage, and pre-0.1.2.2 plaintext values are migrated opportunistically after a successful read;
 - Google Books API discovery/verification is only attempted when an API key is configured; delivery generation remains independent of API availability;
 - a later public API `not found` or ambiguous response never erases a previously linked Google Volume ID;
 - HTTP feed pages send `X-Robots-Tag: noindex, nofollow, noarchive`;
@@ -269,6 +269,10 @@ Changing OMP `general.app_key` after transport secrets have been stored makes th
 ## Queue processing
 
 Synchronization, verification, and push/staging delivery operations use the OMP/PKP job queue. OMP 3.5 can process jobs with the built-in job runner, cron, or a queue worker. A production installation must have one functioning job-processing method. HTTP/HTTPS pull does not enqueue file uploads because Google retrieves those resources directly.
+
+## Continuous integration
+
+The public repository includes `.github/workflows/ci.yml`. Pull requests and pushes to `main` run the complete `tests/run_all.sh` suite on a clean Ubuntu runner with the required PHP/SQLite/XML and Python/lxml dependencies. This complements, rather than replaces, production testing against a real OMP installation and Google publisher credentials.
 
 ## Installation package
 
@@ -294,7 +298,7 @@ Then install/enable it in the OMP plugin manager so the database migration is ap
 
 ## Upgrade from earlier releases
 
-Do not uninstall an older release before updating. Upload 0.1.2.1 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration adds the delivery-file state table required for incremental multi-transport synchronization.
+Do not uninstall an older release before updating. Upload 0.1.2.2 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration adds the delivery-file state table required for incremental multi-transport synchronization.
 
 Existing 0.1.1.x installations default to **HTTP/HTTPS pull**, preserving prior behavior until a manager explicitly selects a different transport. Existing HTTP crawler username/password settings remain valid. Outbound transport secrets introduced in 0.1.2.0 are stored separately and encrypted.
 

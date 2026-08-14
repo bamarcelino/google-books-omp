@@ -24,6 +24,7 @@ use APP\plugins\generic\googleBooks\classes\Migration\GoogleBooksSchemaMigration
 use APP\plugins\generic\googleBooks\classes\Migration\PluginSettingsMigrator;
 use APP\plugins\generic\googleBooks\classes\Model\BookMetadata;
 use APP\plugins\generic\googleBooks\classes\Repository\GoogleBooksStateRepository;
+use APP\plugins\generic\googleBooks\classes\Security\SecretStore;
 use Illuminate\Support\Facades\Event;
 use PKP\linkAction\LinkAction;
 use PKP\linkAction\request\RedirectAction;
@@ -34,6 +35,7 @@ use PKP\plugins\GenericPlugin;
 use PKP\plugins\Hook;
 use PKP\submission\PKPSubmission;
 use PKP\submissionFile\SubmissionFile;
+use Throwable;
 
 final class GoogleBooksPlugin extends GenericPlugin
 {
@@ -284,6 +286,64 @@ final class GoogleBooksPlugin extends GenericPlugin
         return $value === null || $value === '' ? $default : (bool) $value;
     }
 
+
+    /**
+     * Return whether Google Books API discovery has a configured key without
+     * decrypting or rendering the secret.
+     */
+    public function hasGoogleApiKey(int $contextId): bool
+    {
+        return trim((string) $this->getSetting($contextId, 'googleApiKeyEncrypted')) !== ''
+            || trim((string) $this->getSetting($contextId, 'googleApiKey')) !== '';
+    }
+
+    /**
+     * Recover the API key for outbound Google Books API requests.
+     *
+     * 0.1.2.2 stores new values under googleApiKeyEncrypted. If an installation
+     * still has the pre-0.1.2.2 plaintext setting, migrate it opportunistically
+     * after a successful read. A missing/broken app_key does not silently erase
+     * the legacy value, so an upgrade cannot strand discovery before the site
+     * administrator repairs the OMP application key.
+     */
+    public function getGoogleApiKey(int $contextId): string
+    {
+        $encrypted = trim((string) $this->getSetting($contextId, 'googleApiKeyEncrypted'));
+        if ($encrypted !== '') {
+            return SecretStore::decryptApiKey($encrypted);
+        }
+
+        $legacy = trim((string) $this->getSetting($contextId, 'googleApiKey'));
+        if ($legacy === '') {
+            return '';
+        }
+
+        try {
+            $this->setGoogleApiKey($contextId, $legacy);
+        } catch (Throwable $e) {
+            error_log('Google Books API-key encryption migration deferred: ' . $e->getMessage());
+        }
+        return $legacy;
+    }
+
+    public function setGoogleApiKey(int $contextId, string $apiKey): void
+    {
+        $apiKey = trim($apiKey);
+        if ($apiKey === '') {
+            return;
+        }
+        $encrypted = SecretStore::encryptApiKey($apiKey);
+        $this->updateSetting($contextId, 'googleApiKeyEncrypted', $encrypted, 'string');
+        // Remove the legacy plaintext setting only after encryption succeeded.
+        $this->updateSetting($contextId, 'googleApiKey', '', 'string');
+    }
+
+    public function clearGoogleApiKey(int $contextId): void
+    {
+        $this->updateSetting($contextId, 'googleApiKeyEncrypted', '', 'string');
+        $this->updateSetting($contextId, 'googleApiKey', '', 'string');
+    }
+
     public function getFeedRevision(int $contextId): int
     {
         $revision = (int) $this->getSetting($contextId, 'feedRevision');
@@ -391,7 +451,7 @@ final class GoogleBooksPlugin extends GenericPlugin
     private function canAutoDiscover(int $contextId): bool
     {
         return $this->boolSetting($contextId, 'autoDiscovery', true)
-            && trim((string) $this->getSetting($contextId, 'googleApiKey')) !== '';
+            && $this->hasGoogleApiKey($contextId);
     }
 
     private function canAutoSync(int $contextId): bool

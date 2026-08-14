@@ -77,7 +77,7 @@ final class DashboardHandler extends \APP\handler\Handler
         $contextId = (int) $context->getId();
         $repository = new GoogleBooksStateRepository();
         $settings = $this->settings($contextId);
-        $apiConfigured = trim((string) $this->plugin->getSetting($contextId, 'googleApiKey')) !== '';
+        $apiConfigured = $this->plugin->hasGoogleApiKey($contextId);
         $deliveryManager = new DeliveryManager($this->plugin);
         $deliveryReadiness = $deliveryManager->readiness($contextId);
         $feedReady = (bool) $deliveryReadiness['ready'];
@@ -136,7 +136,7 @@ final class DashboardHandler extends \APP\handler\Handler
         // Cache-bust dashboard assets on every plugin release. OMP installations
         // are frequently upgraded in-place and browsers/CDNs may otherwise keep
         // the previous dashboard.js under the unchanged plugin path.
-        $assetVersion = '0.1.2.1';
+        $assetVersion = '0.1.2.2';
         $dashboardCssUrl = $assetBase . '/styles/dashboard.css?v=' . rawurlencode($assetVersion);
         $dashboardJsUrl = $assetBase . '/scripts/dashboard.js?v=' . rawurlencode($assetVersion);
         $templateMgr->addStyleSheet(
@@ -326,7 +326,7 @@ final class DashboardHandler extends \APP\handler\Handler
             $this->requireCsrf($request);
             $context = $this->requireContext($request);
             $contextId = (int) $context->getId();
-            if (trim((string) $this->plugin->getSetting($contextId, 'googleApiKey')) === '') {
+            if (!$this->plugin->hasGoogleApiKey($contextId)) {
                 $this->redirect($request, 'apiKeyRequired');
             }
             CatalogDiscoveryJob::dispatch($contextId, $request->getUser()?->getId())
@@ -385,7 +385,7 @@ final class DashboardHandler extends \APP\handler\Handler
             $this->requireCsrf($request);
             $context = $this->requireContext($request);
             $contextId = (int) $context->getId();
-            if (trim((string) $this->plugin->getSetting($contextId, 'googleApiKey')) === '') {
+            if (!$this->plugin->hasGoogleApiKey($contextId)) {
                 $this->redirect($request, 'apiKeyRequired');
             }
             $submissionId = (int) $request->getUserVar('submissionId');
@@ -471,9 +471,13 @@ final class DashboardHandler extends \APP\handler\Handler
         $this->plugin->updateSetting($contextId, 'googlePartnerId', trim((string) $request->getUserVar('googlePartnerId')), 'string');
         $this->plugin->updateSetting($contextId, 'autoDiscovery', (bool) $request->getUserVar('autoDiscovery'), 'bool');
         $this->plugin->updateSetting($contextId, 'showPublicLink', (bool) $request->getUserVar('showPublicLink'), 'bool');
+        if ((bool) $request->getUserVar('clearGoogleApiKey')) {
+            $this->plugin->clearGoogleApiKey($contextId);
+            return;
+        }
         $newApiKey = trim((string) $request->getUserVar('googleApiKey'));
         if ($newApiKey !== '') {
-            $this->plugin->updateSetting($contextId, 'googleApiKey', $newApiKey, 'string');
+            $this->plugin->setGoogleApiKey($contextId, $newApiKey);
         }
     }
 
@@ -667,7 +671,7 @@ final class DashboardHandler extends \APP\handler\Handler
         return [
             'collectionCode' => (string) $this->plugin->getSetting($contextId, 'collectionCode'),
             'googleApiKey' => '',
-            'hasGoogleApiKey' => trim((string) $this->plugin->getSetting($contextId, 'googleApiKey')) !== '',
+            'hasGoogleApiKey' => $this->plugin->hasGoogleApiKey($contextId),
             'googlePartnerId' => (string) $this->plugin->getSetting($contextId, 'googlePartnerId'),
             'feedUsername' => (string) $this->plugin->getSetting($contextId, 'feedUsername'),
             'hasFeedPassword' => (string) $this->plugin->getSetting($contextId, 'feedPasswordHash') !== '',

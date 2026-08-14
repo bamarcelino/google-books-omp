@@ -109,6 +109,7 @@
                 {csrf}
                 <div class="gb-form-grid">
                     <div class="section gb-field gb-field--wide"><label for="googleApiKey">{translate key="plugins.generic.googleBooks.apiKey"}</label><input id="googleApiKey" name="googleApiKey" type="password" autocomplete="new-password"><p class="description">{if $googleBooksSettings.hasGoogleApiKey}{translate key="plugins.generic.googleBooks.apiKeyAlreadySet"}{else}{translate key="plugins.generic.googleBooks.apiKeyDescription"}{/if}</p></div>
+                    {if $googleBooksSettings.hasGoogleApiKey}<label class="gb-check gb-check--danger gb-field--wide"><input type="checkbox" name="clearGoogleApiKey" value="1"><span>{translate key="plugins.generic.googleBooks.clearStoredSecret"}</span></label>{/if}
                     <div class="section gb-field"><label for="googlePartnerId">{translate key="plugins.generic.googleBooks.partnerId"}</label><input id="googlePartnerId" name="googlePartnerId" type="text" value="{$googleBooksSettings.googlePartnerId|escape}" autocomplete="off"><p class="description">{translate key="plugins.generic.googleBooks.partnerIdDescription"}</p></div>
                 </div>
                 <div class="gb-check-grid">

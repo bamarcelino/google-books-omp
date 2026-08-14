@@ -47,7 +47,7 @@ final class CatalogDiscoveryJob extends GoogleBooksJob
         if (!$plugin->getEnabled($this->contextId)) {
             return;
         }
-        if (trim((string) $plugin->getSetting($this->contextId, 'googleApiKey')) === '') {
+        if (!$plugin->hasGoogleApiKey($this->contextId)) {
             return;
         }
         $context = Application::getContextDAO()->getById($this->contextId);

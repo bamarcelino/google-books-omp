@@ -623,7 +623,7 @@ namespace {
                 'defaultWorldwideRightsForFree' => '',
             ], true));
         } elseif ($operationSmoke === 'discover') {
-            $plugin->updateSetting(1, 'googleApiKey', 'api-key-value', 'string');
+            $plugin->setGoogleApiKey(1, 'api-key-value');
             $handler->discover([], new OperationRequest([], true));
         } elseif ($operationSmoke === 'sync' || $operationSmoke === 'force') {
             $plugin->updateSetting(1, 'collectionCode', 'AB12345', 'string');
@@ -661,6 +661,17 @@ namespace {
     $check(\APP\plugins\generic\googleBooks\GoogleBooksPlugin::normalizeCollectionCode(" AB1\u{200B}2345 ") === 'AB12345', 'Collection code copy/paste whitespace normalization failed');
     $check(!\APP\plugins\generic\googleBooks\GoogleBooksPlugin::isValidCollectionCode('AB1234'), 'Six-character collection code must remain invalid');
     $check($plugin->register('generic', 'plugins/generic/googleBooks', 1), 'Plugin register() returned false');
+    // Pre-0.1.2.2 API keys were stored in plaintext. A successful
+    // read must migrate the value into the encrypted envelope and clear the
+    // legacy setting without changing the key returned to discovery jobs.
+    $plugin->updateSetting(1, 'googleApiKey', 'legacy-api-key-value', 'string');
+    $check($plugin->hasGoogleApiKey(1), 'Legacy plaintext API key is not recognized during upgrade');
+    $check($plugin->getGoogleApiKey(1) === 'legacy-api-key-value', 'Legacy API key could not be recovered during encrypted migration');
+    $storedApiKey = (string) $plugin->getSetting(1, 'googleApiKeyEncrypted');
+    $check(\APP\plugins\generic\googleBooks\classes\Security\SecretStore::isApiKeyEncrypted($storedApiKey), 'Legacy API key was not migrated into the encrypted envelope');
+    $check((string) $plugin->getSetting(1, 'googleApiKey') === '', 'Legacy plaintext API key was not cleared after encrypted migration');
+    $plugin->clearGoogleApiKey(1);
+    $check(!$plugin->hasGoogleApiKey(1), 'Clearing the stored API key left an API-key setting active');
     $hookNames = array_map(static fn (array $hook): string => $hook[0], \PKP\plugins\Hook::$hooks);
     $check(count($hookNames) === 5, 'Plugin did not register its five OMP hooks');
     $check(

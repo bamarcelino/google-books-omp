@@ -1,4 +1,4 @@
-# Google Books Integration for OMP 0.1.2.1 - Validation Report
+# Google Books Integration for OMP 0.1.2.2 - Validation Report
 
 **Target:** Open Monograph Press 3.5.x, validated against OMP/PKP 3.5.0-5 public contracts  
 **Author:** Bruno Cesar Alves Marcelino  
@@ -7,7 +7,7 @@
 
 ## Scope
 
-Release 0.1.2.1 retains the 0.1.2.0 transport-neutral delivery layer and fixes dashboard navigation reliability while preserving the prior OMP 3.5 repairs for HTTP Basic authentication diagnostics, dashboard actions, historical ISBN discovery, localization, Google Books API error handling, queue isolation and public identifier placement.
+Release 0.1.2.2 retains the 0.1.2.x transport-neutral delivery layer and dashboard navigation repairs while hardening Google Books API-key storage and preserving the prior OMP 3.5 repairs for HTTP Basic authentication diagnostics, dashboard actions, historical ISBN discovery, localization, Google Books API error handling, queue isolation and public identifier placement.
 
 Validation covers plugin code, OMP-facing contracts, identifier normalization, Google Books discovery behavior, ONIX generation, delivery-manifest generation, reversible outbound-secret protection, database state, transport configuration, localization, queue integration and distribution archives. It does not claim that Google has accepted a real publisher feed or credentials; Google-side onboarding remains external.
 
@@ -47,7 +47,7 @@ The dashboard now separates Google/API and remote-transport authentication from 
 
 HTTP/HTTPS pull retains the 0.1.1.6 secret-free diagnostic and the compatibility fallbacks for native PHP auth variables, raw server Authorization variables, request headers, `$_ENV`, `getenv()` and FastCGI variants. Incoming crawler passwords continue to use `password_hash()` / `password_verify()`.
 
-SFTP, FTP/FTPS and GCS are outbound transports, so their credentials must be recoverable. `SecretStore` encrypts those values with AES-256-GCM using a key derived from OMP `general.app_key`. Tests verify encryption/decryption round-trip, tamper rejection, encrypted persistence, and absence of plaintext secrets in the stored setting contract. The dashboard never renders stored secret values back to the manager.
+SFTP, FTP/FTPS and GCS are outbound transports, so their credentials must be recoverable. `SecretStore` encrypts those values with AES-256-GCM using a key derived from OMP `general.app_key`. Release 0.1.2.2 applies the same principle to the Google Books API key using a separate versioned `gbapi:v1` envelope and AAD domain. Pre-0.1.2.2 plaintext API keys remain readable until encryption succeeds, then the legacy plaintext value is cleared. Tests verify round-trip, tamper rejection, encrypted persistence, and absence of new plaintext API-key writes. The dashboard never renders stored secret values back to the manager.
 
 ## Transport/runtime capability checks
 
@@ -118,20 +118,24 @@ The 0.1.2.x dashboard provides four primary tabs:
 
 English, Spanish and Brazilian Portuguese catalogues each contain **229** Google Books locale keys with identical key sets. Distribution-source checks reject hardcoded known deployment domains, known real collection codes and plaintext secrets. Documentation/examples use generic values such as `AB12C34`.
 
+## Repository CI hardening
+
+The public repository now carries a permanent GitHub Actions workflow (`.github/workflows/ci.yml`) that runs `tests/run_all.sh` for pull requests and pushes to `main`. The workflow installs the PHP/SQLite/XML and Python/lxml runtime dependencies on a clean Ubuntu runner before executing the same suite used for local packaging.
+
 ## Automated test results
 
 The final source tree passes:
 
 | Suite | Result |
 | --- | ---: |
-| Core behavior, identifiers, Google matching, auth/secret and delivery contracts | 212/212 |
+| Core behavior, identifiers, Google matching, auth/secret and delivery contracts | 218/218 |
 | Repository/database state, including delivery-file state | 42/42 |
 | OMP mapper/DAO/code-24 ISBN regression | 24/24 |
 | Plugin-settings migration | 16/16 |
-| Package, locale, security and source contracts | 201/201 |
-| OMP 3.5 compatibility smoke suite | 50/50 |
+| Package, locale, security and source contracts | 207/207 |
+| OMP 3.5 compatibility smoke suite | 55/55 |
 | Dashboard POST/persistence/queue smoke suite | 40/40 |
-| **Total behavioral/contract assertions** | **585/585** |
+| **Total behavioral/contract assertions** | **602/602** |
 
 In addition, all **42 PHP files** in the release are linted with `php -l`; any syntax error fails packaging.
 

@@ -18,7 +18,9 @@ trap 'rm -f "$api_capture" "$feed_capture"' EXIT HUP INT TERM
 api_out=$(GOOGLEBOOKS_OPERATION_SMOKE=save-api GOOGLEBOOKS_SETTINGS_CAPTURE="$api_capture" php tests/omp35_smoke.php)
 printf '%s\n' "$api_out" | grep -q '/press/pt_BR/googlebooks?message=apiSettingsSaved'
 grep -q '"name":"googlePartnerId","value":"partner-42"' "$api_capture"
-grep -q '"name":"googleApiKey","value":"api-key-value"' "$api_capture"
+grep -q '"name":"googleApiKeyEncrypted","value":"gbapi:v1:' "$api_capture"
+! grep -q 'api-key-value' "$api_capture"
+grep -q '"name":"googleApiKey","value":""' "$api_capture"
 grep -q '"name":"autoDiscovery","value":true' "$api_capture"
 grep -q '"name":"showPublicLink","value":true' "$api_capture"
 feed_out=$(GOOGLEBOOKS_OPERATION_SMOKE=save-feed GOOGLEBOOKS_SETTINGS_CAPTURE="$feed_capture" php tests/omp35_smoke.php)

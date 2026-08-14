@@ -66,8 +66,8 @@ final class GoogleBooksSyncService
             return $result;
         }
 
-        $apiKey = $this->nullableSetting((int) $context->getId(), 'googleApiKey');
-        if ($apiKey === null) {
+        $apiKey = trim($this->plugin->getGoogleApiKey((int) $context->getId()));
+        if ($apiKey === '') {
             foreach ($books as $book) {
                 $this->repository->ensureRecord($book);
             }
