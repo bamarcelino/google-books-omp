@@ -1,0 +1,43 @@
+name: Verify repaired Google Books part-ag
+
+on:
+  push:
+    paths:
+      - '.bootstrap/TRIGGER-VERIFY-AG'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact chunks
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=(
+            61202b2da93c6c24fe780854b9854090a5cf44606743ba2098cb982f8b5889df
+            1a903151d5fd6c4520d64dc1f4d45659bdbda9b966055609c1b3458a98ae039c
+            c378fc6366b598e996119668584cb6f5949c7f798818232b61bf83fe8ef814fc
+            2fb728599b24edf4ce6e937324f8aa7d95534b40adf1a03a43b560b0a13953f1
+            1ed298f785dc853751a011f82c3815d39ef809210f98a467a000e1b7b33d9162
+            3af9d0285f096cd945ea82fbd8e3c94635779f8b7f037473418341885f9a4066
+            02078084688d6c6dc8b837962fe4d4a80a0743212599a1ba77f5ca2a7dc915ca
+            f102e2b82fc06f072f6a38aa5629edd4b2ea978d03419ae65008e3646cc952ec
+            af6a96838bdf6756b3f54896e2812cf8ac7120c25ffb9cb253e24696184e01da
+            18a22e1f03e75dca2eb550c3209f79c36903a15f6c255914a9b2c4aa5e51f098
+          )
+          for i in $(seq -w 0 9); do
+            f=".bootstrap/ag-$i"
+            test "$(wc -c < "$f")" -eq 1000
+            h=$(sha256sum "$f" | cut -d' ' -f1)
+            idx=$((10#$i))
+            echo "$f $h"
+            test "$h" = "${expected[$idx]}"
+          done
+          cat .bootstrap/ag-00 .bootstrap/ag-01 .bootstrap/ag-02 .bootstrap/ag-03 .bootstrap/ag-04 .bootstrap/ag-05 .bootstrap/ag-06 .bootstrap/ag-07 .bootstrap/ag-08 .bootstrap/ag-09 > /tmp/ag-head
+          h=$(sha256sum /tmp/ag-head | cut -d' ' -f1)
+          echo "combined=$h"
+          test "$h" = 'd2280a8858747395f0bb05295d36cc63b0320db0dc55b5947fb5bf9db3969c4a'
