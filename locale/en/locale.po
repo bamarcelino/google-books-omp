@@ -1,0 +1,694 @@
+msgid ""
+msgstr ""
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "plugins.generic.googleBooks.displayName"
+msgstr "Google Books Integration for OMP"
+
+msgid "plugins.generic.googleBooks.description"
+msgstr "Synchronizes published OMP books with Google Books and Google Play Books through the official automated content fetching workflow."
+
+msgid "plugins.generic.googleBooks.dashboard"
+msgstr "Google Books"
+
+msgid "plugins.generic.googleBooks.dashboardIntro"
+msgstr "Discover existing Google Books records, prepare Google-specific ONIX 3.0 feeds, expose current PDF/EPUB/cover files to the Google crawler, and monitor synchronization state."
+
+msgid "plugins.generic.googleBooks.catalogStatus"
+msgstr "Catalog status"
+
+msgid "plugins.generic.googleBooks.records"
+msgstr "Tracked products"
+
+msgid "plugins.generic.googleBooks.linked"
+msgstr "Linked to Google Books"
+
+msgid "plugins.generic.googleBooks.notFound"
+msgstr "Not yet found in Google Books"
+
+msgid "plugins.generic.googleBooks.feedAvailable"
+msgstr "Available in publisher feed"
+
+msgid "plugins.generic.googleBooks.retired"
+msgstr "Retired from publisher feed"
+
+msgid "plugins.generic.googleBooks.errors"
+msgstr "Errors"
+
+msgid "plugins.generic.googleBooks.synchronizeCatalog"
+msgstr "Synchronize Google Books Catalog"
+
+msgid "plugins.generic.googleBooks.forceFullRefresh"
+msgstr "Force full catalog refresh"
+
+msgid "plugins.generic.googleBooks.settings"
+msgstr "Settings"
+
+msgid "plugins.generic.googleBooks.googleConfiguration"
+msgstr "Google configuration"
+
+msgid "plugins.generic.googleBooks.collectionCode"
+msgstr "Default collection code"
+
+msgid "plugins.generic.googleBooks.collectionCodeDescription"
+msgstr "The 7-character alphanumeric code shown under Book Catalog > Advanced > Manage templates. Example: AB12345."
+
+msgid "plugins.generic.googleBooks.imprintMap"
+msgstr "Imprint to collection code map"
+
+msgid "plugins.generic.googleBooks.imprintMapDescription"
+msgstr "Optional. One mapping per line, for example: My Imprint=AB12345. This supports publishers with multiple Google templates/imprints."
+
+msgid "plugins.generic.googleBooks.apiKey"
+msgstr "Google Books API key"
+
+msgid "plugins.generic.googleBooks.partnerId"
+msgstr "Google Books Partner ID"
+
+msgid "plugins.generic.googleBooks.feedAuthentication"
+msgstr "Publisher feed authentication"
+
+msgid "plugins.generic.googleBooks.feedUsername"
+msgstr "Feed username"
+
+msgid "plugins.generic.googleBooks.feedPassword"
+msgstr "Feed password"
+
+msgid "plugins.generic.googleBooks.feedPasswordAlreadySet"
+msgstr "A password is already stored. Leave this field blank to keep it."
+
+msgid "plugins.generic.googleBooks.feedPasswordDescription"
+msgstr "Set a password before enabling the feed. Use alphanumeric credentials for Google automated fetching."
+
+msgid "plugins.generic.googleBooks.behavior"
+msgstr "Synchronization behavior"
+
+msgid "plugins.generic.googleBooks.autoSync"
+msgstr "Automatically queue synchronization when a published book or its metadata changes"
+
+msgid "plugins.generic.googleBooks.defaultFree"
+msgstr "Treat formats without an OMP market price as free of charge"
+
+msgid "plugins.generic.googleBooks.showPublicLink"
+msgstr "Show Google Books next to the public book identifiers after a record is discovered"
+
+msgid "plugins.generic.googleBooks.feedEnabled"
+msgstr "Enable the full Google publisher feed"
+
+msgid "plugins.generic.googleBooks.validationSample"
+msgstr "Initial ONIX validation sample"
+
+msgid "plugins.generic.googleBooks.validationSampleDescription"
+msgstr "Select a real published book with an ISBN, title, author(s), publisher/imprint and publication date. The plugin generates the one-time metadata-only ONIX format sample for onix/validate/. Google does not use this sample to enable rights or sales settings."
+
+msgid "plugins.generic.googleBooks.validationBook"
+msgstr "Validation book"
+
+msgid "plugins.generic.googleBooks.generateValidation"
+msgstr "Generate validation ONIX"
+
+msgid "plugins.generic.googleBooks.validationUrl"
+msgstr "Authenticated validation URL"
+
+msgid "plugins.generic.googleBooks.downloadValidation"
+msgstr "Download validation ONIX"
+
+msgid "plugins.generic.googleBooks.feedEndpoints"
+msgstr "Google automated content fetching endpoints"
+
+msgid "plugins.generic.googleBooks.feedEndpointsDescription"
+msgstr "Provide these authenticated top-level URLs to Google when configuring automated content fetching."
+
+msgid "plugins.generic.googleBooks.activeCollectionCodes"
+msgstr "Active collection codes:"
+
+msgid "plugins.generic.googleBooks.books"
+msgstr "Books"
+
+msgid "plugins.generic.googleBooks.discovery"
+msgstr "Discovery"
+
+msgid "plugins.generic.googleBooks.syncStatus"
+msgstr "Feed status"
+
+msgid "plugins.generic.googleBooks.syncNow"
+msgstr "Synchronize now"
+
+msgid "plugins.generic.googleBooks.forceRefresh"
+msgstr "Force refresh"
+
+msgid "plugins.generic.googleBooks.openGoogle"
+msgstr "Open Google Books"
+
+msgid "plugins.generic.googleBooks.noRecords"
+msgstr "No books are tracked yet. Run a catalog synchronization after configuration."
+
+msgid "plugins.generic.googleBooks.lastRun"
+msgstr "Last catalog synchronization"
+
+msgid "plugins.generic.googleBooks.mode"
+msgstr "Mode"
+
+msgid "plugins.generic.googleBooks.scanned"
+msgstr "Books scanned"
+
+msgid "plugins.generic.googleBooks.updated"
+msgstr "Updated products"
+
+msgid "plugins.generic.googleBooks.unchanged"
+msgstr "Unchanged products"
+
+msgid "plugins.generic.googleBooks.retiredProducts"
+msgstr "Retired products"
+
+msgid "plugins.generic.googleBooks.failed"
+msgstr "Failed products"
+
+msgid "plugins.generic.googleBooks.publicLabel"
+msgstr "Google Books"
+
+msgid "plugins.generic.googleBooks.viewOnGoogleBooks"
+msgstr "View on Google Books"
+
+msgid "plugins.generic.googleBooks.defaultWorldwideRightsForFree"
+msgstr "Assume worldwide non-exclusive sales rights for free titles when OMP has no Sales Rights entry"
+
+msgid "plugins.generic.googleBooks.defaultWorldwideRightsForFreeDescription"
+msgstr "Disabled by default. Enable only if the publisher actually holds worldwide rights. The plugin otherwise requires explicit OMP Sales Rights before exposing a title in the Google rights feed."
+
+msgid "plugins.generic.googleBooks.apiKeyAlreadySet"
+msgstr "An API key is already stored. Leave this field blank to keep it."
+
+msgid "plugins.generic.googleBooks.apiKeyDescription"
+msgstr "Required for Google Books discovery and verification. It is not required for feed generation. The key is stored by OMP and is never rendered back into this form."
+
+msgid "plugins.generic.googleBooks.message.settingsSaved"
+msgstr "Google Books settings were saved."
+
+msgid "plugins.generic.googleBooks.message.syncQueued"
+msgstr "Catalog synchronization was queued."
+
+msgid "plugins.generic.googleBooks.message.forceQueued"
+msgstr "A forced full catalog refresh was queued."
+
+msgid "plugins.generic.googleBooks.message.bookSyncQueued"
+msgstr "Book synchronization was queued."
+
+msgid "plugins.generic.googleBooks.message.validationReady"
+msgstr "The validation ONIX was generated successfully."
+
+msgid "plugins.generic.googleBooks.message.invalidCollectionCode"
+msgstr "The Google collection code must contain exactly 7 alphanumeric characters. Invisible copy-and-paste spacing is removed automatically."
+
+msgid "plugins.generic.googleBooks.message.invalidFeedCredentials"
+msgstr "Google feed username and password must be alphanumeric."
+
+msgid "plugins.generic.googleBooks.message.invalidImprintMap"
+msgstr "The imprint map is invalid. Use one Imprint=AB12345 mapping per line."
+
+msgid "plugins.generic.googleBooks.message.feedConfigurationIncomplete"
+msgstr "At least one collection code, a feed username and a feed password are required before the full feed can be enabled."
+
+msgid "plugins.generic.googleBooks.message.collectionCodeRequired"
+msgstr "Configure at least one valid Google collection code before synchronizing."
+
+msgid "plugins.generic.googleBooks.message.invalidSubmission"
+msgstr "The selected OMP submission does not belong to this press."
+
+msgid "plugins.generic.googleBooks.message.validationFailed"
+msgstr "The selected book could not produce a valid Google ONIX validation sample. Check its ISBN, title, author(s), publisher/imprint and publication date. If an incident code is shown, consult the server error log for that code."
+
+msgid "plugins.generic.googleBooks.checkGoogleStatus"
+msgstr "Check Google status"
+
+msgid "plugins.generic.googleBooks.autoVerifyGoogle"
+msgstr "Automatically recheck Google Books after a newly exposed book is not found"
+
+msgid "plugins.generic.googleBooks.autoVerifyGoogleDescription"
+msgstr "When enabled, the plugin schedules bounded follow-up ISBN checks after synchronization so the Google Volume ID can be linked after Google processes the feed."
+
+msgid "plugins.generic.googleBooks.message.verifyQueued"
+msgstr "A Google Books status check was queued."
+
+msgid "plugins.generic.googleBooks.message.apiKeyRequired"
+msgstr "A Google Books API key is required for discovery and verification."
+
+msgid "plugins.generic.googleBooks.message.validationNotSelected"
+msgstr "Select and generate a validation book before downloading the ONIX sample."
+
+msgid "plugins.generic.googleBooks.message.csrfExpired"
+msgstr "Your session security token expired. Reload the Google Books page and submit the form again."
+
+msgid "plugins.generic.googleBooks.message.operationFailed"
+msgstr "The Google Books operation could not be completed. No raw server error was exposed. Use the incident code below to locate the technical error in the server log."
+
+msgid "plugins.generic.googleBooks.message.incidentCode"
+msgstr "Diagnostic incident code"
+
+msgid "plugins.generic.googleBooks.feedDisabled"
+msgstr "Feed disabled"
+
+msgid "plugins.generic.googleBooks.catalogStatusDescription"
+msgstr "Current reconciliation state between the OMP catalog, publisher feed and Google Books."
+
+msgid "plugins.generic.googleBooks.catalogActions"
+msgstr "Google Books catalog actions"
+
+msgid "plugins.generic.googleBooks.settingsDescription"
+msgstr "Configure the Google Partner account, collection codes, feed access and synchronization behavior for this press."
+
+msgid "plugins.generic.googleBooks.collectionCodeDetected"
+msgstr "Value detected"
+
+msgid "plugins.generic.googleBooks.partnerIdDescription"
+msgstr "Optional Google Books Partner ID used to narrow verification queries when available."
+
+msgid "plugins.generic.googleBooks.feedActive"
+msgstr "Feed active"
+
+msgid "plugins.generic.googleBooks.apiReady"
+msgstr "API configured"
+
+msgid "plugins.generic.googleBooks.apiNotConfigured"
+msgstr "API not configured"
+
+msgid "plugins.generic.googleBooks.feedReady"
+msgstr "Feed ready"
+
+msgid "plugins.generic.googleBooks.feedNotReadyStatus"
+msgstr "Feed not configured"
+
+msgid "plugins.generic.googleBooks.publishedInOmp"
+msgstr "Books published in OMP"
+
+msgid "plugins.generic.googleBooks.discoveryErrors"
+msgstr "Discovery errors"
+
+msgid "plugins.generic.googleBooks.feedIneligible"
+msgstr "Not eligible for feed"
+
+msgid "plugins.generic.googleBooks.feedErrors"
+msgstr "Feed errors"
+
+msgid "plugins.generic.googleBooks.discoverySection"
+msgstr "Google Books discovery"
+
+msgid "plugins.generic.googleBooks.discoverySectionDescription"
+msgstr "Reconcile every published OMP ISBN against the public Google Books API. This does not require the publisher feed, does not send ONIX or files, and stores an unambiguous Volume ID immediately for display on the public book page."
+
+msgid "plugins.generic.googleBooks.discoverCatalog"
+msgstr "Discover catalogue in Google Books"
+
+msgid "plugins.generic.googleBooks.discoveryNeedsApiKey"
+msgstr "Save a Google Books API key to enable catalogue discovery."
+
+msgid "plugins.generic.googleBooks.feedSyncSection"
+msgstr "Feed synchronization"
+
+msgid "plugins.generic.googleBooks.feedSyncSectionDescription"
+msgstr "Prepare ONIX, rights and files for Google's automated content fetcher. This becomes available only after the feed is configured and enabled."
+
+msgid "plugins.generic.googleBooks.synchronizeFeed"
+msgstr "Update Google feed"
+
+msgid "plugins.generic.googleBooks.feedNotReadyHelp"
+msgstr "Configure a collection code, alphanumeric crawler credentials and enable the feed before publishing content to Google."
+
+msgid "plugins.generic.googleBooks.apiSettings"
+msgstr "Google Books API"
+
+msgid "plugins.generic.googleBooks.apiSettingsDescription"
+msgstr "The API is used only to discover and verify existing volumes. It can be used before Automated Content Fetching is configured."
+
+msgid "plugins.generic.googleBooks.autoDiscovery"
+msgstr "Automatically discover a book in Google Books when it is published or its metadata changes"
+
+msgid "plugins.generic.googleBooks.autoDiscoveryDescription"
+msgstr "Runs an ISBN lookup in the background and updates the Google Volume ID and public link when there is one unambiguous match."
+
+msgid "plugins.generic.googleBooks.showPublicLinkDescription"
+msgstr "After a Volume ID is found, the public book page displays Google Books, ISBN and Volume ID with the bibliographic details."
+
+msgid "plugins.generic.googleBooks.feedSettings"
+msgstr "Automated Content Feed"
+
+msgid "plugins.generic.googleBooks.feedSettingsDescription"
+msgstr "Configure the channel Google's crawler will use to fetch ONIX, PDF/EPUB and covers. These credentials are created by the publisher and are not Google account credentials."
+
+msgid "plugins.generic.googleBooks.feedCredentialsDescription"
+msgstr "Create a dedicated username and password for the crawler. Google requires letters and numbers only. The generator creates compatible credentials; the password is stored only as a hash."
+
+msgid "plugins.generic.googleBooks.generateCredentials"
+msgstr "Generate secure credentials"
+
+msgid "plugins.generic.googleBooks.feedEnabledDescription"
+msgstr "Enable only after configuring the collection code and the credentials that will be supplied to Google."
+
+msgid "plugins.generic.googleBooks.behaviorDescription"
+msgstr "Configure feed-delivery behavior. API discovery remains independent."
+
+msgid "plugins.generic.googleBooks.booksDescription"
+msgstr "Local records created by ISBN discovery or feed preparation. A book may be linked to Google even when it is not eligible for the feed."
+
+msgid "plugins.generic.googleBooks.discoverNow"
+msgstr "Discover now"
+
+msgid "plugins.generic.googleBooks.skipped"
+msgstr "Published books with no detectable ISBN"
+
+msgid "plugins.generic.googleBooks.runDetails"
+msgstr "Run details"
+
+msgid "plugins.generic.googleBooks.message.apiSettingsSaved"
+msgstr "Google Books API settings were saved."
+
+msgid "plugins.generic.googleBooks.message.feedSettingsSaved"
+msgstr "Google feed settings were saved."
+
+msgid "plugins.generic.googleBooks.message.behaviorSettingsSaved"
+msgstr "Synchronization behavior was saved."
+
+msgid "plugins.generic.googleBooks.message.discoveryQueued"
+msgstr "Google Books catalogue discovery was queued in batches. The feed does not need to be enabled."
+
+msgid "plugins.generic.googleBooks.message.feedSyncQueued"
+msgstr "Google feed update was queued."
+
+msgid "plugins.generic.googleBooks.message.bookDiscoveryQueued"
+msgstr "Google Books discovery for this book was queued."
+
+msgid "plugins.generic.googleBooks.message.feedNotReady"
+msgstr "The feed is not ready. Configure a collection code, alphanumeric username and password, then enable the feed."
+
+msgid "plugins.generic.googleBooks.lastDiscoveryRun"
+msgstr "Latest Google Books API discovery"
+
+msgid "plugins.generic.googleBooks.lastFeedRun"
+msgstr "Latest Google feed synchronization"
+
+msgid "plugins.generic.googleBooks.authDiagnostic"
+msgstr "Feed authentication diagnostic"
+
+msgid "plugins.generic.googleBooks.authDiagnosticDescription"
+msgstr "Safe status from the most recent authenticated feed request. No username, password, Authorization value, or password hash is stored in this diagnostic. Saving feed settings clears the previous result."
+
+msgid "plugins.generic.googleBooks.authSuccess"
+msgstr "Authenticated"
+
+msgid "plugins.generic.googleBooks.authFailed"
+msgstr "Authentication failed"
+
+msgid "plugins.generic.googleBooks.authTimestamp"
+msgstr "Last attempt (UTC)"
+
+msgid "plugins.generic.googleBooks.authCredentialSource"
+msgstr "Credential source"
+
+msgid "plugins.generic.googleBooks.authAuthorizationPresent"
+msgstr "Authorization header reached PHP"
+
+msgid "plugins.generic.googleBooks.authAuthorizationSource"
+msgstr "Authorization source"
+
+msgid "plugins.generic.googleBooks.authAuthorizationBasic"
+msgstr "Basic scheme detected"
+
+msgid "plugins.generic.googleBooks.authAuthorizationDecoded"
+msgstr "Basic credentials decoded"
+
+msgid "plugins.generic.googleBooks.authNativeUserPresent"
+msgstr "PHP_AUTH_USER present"
+
+msgid "plugins.generic.googleBooks.authNativePasswordPresent"
+msgstr "PHP_AUTH_PW present"
+
+msgid "plugins.generic.googleBooks.authUsernamePresent"
+msgstr "Username received"
+
+msgid "plugins.generic.googleBooks.authUsernameMatches"
+msgstr "Username matches configuration"
+
+msgid "plugins.generic.googleBooks.authPasswordPresent"
+msgstr "Password received"
+
+msgid "plugins.generic.googleBooks.authPasswordMatches"
+msgstr "Password matches stored hash"
+
+msgid "plugins.generic.googleBooks.authBasicDetected"
+msgstr "Basic scheme detected"
+
+msgid "plugins.generic.googleBooks.authDecoded"
+msgstr "Basic credentials decoded"
+
+msgid "plugins.generic.googleBooks.authDiagnosticTitle"
+msgstr "Feed authentication diagnostic"
+
+msgid "plugins.generic.googleBooks.authLastAttempt"
+msgstr "Last attempt (UTC)"
+
+msgid "plugins.generic.googleBooks.authSucceeded"
+msgstr "Authentication succeeded"
+
+msgid "plugins.generic.googleBooks.clearPassphrase"
+msgstr "Clear stored passphrase"
+
+msgid "plugins.generic.googleBooks.clearPassword"
+msgstr "Clear stored password"
+
+msgid "plugins.generic.googleBooks.clearPrivateKey"
+msgstr "Clear stored private key"
+
+msgid "plugins.generic.googleBooks.clearStoredSecret"
+msgstr "Clear the stored credential"
+
+msgid "plugins.generic.googleBooks.deliverNow"
+msgstr "Deliver now"
+
+msgid "plugins.generic.googleBooks.deliveryDeleted"
+msgstr "Removed stale files"
+
+msgid "plugins.generic.googleBooks.deliveryEnabledDescription"
+msgstr "Enables the selected Google delivery workflow for this press. Configuration can be saved while disabled."
+
+msgid "plugins.generic.googleBooks.deliveryMode"
+msgstr "Delivery method"
+
+msgid "plugins.generic.googleBooks.deliveryModeDescription"
+msgstr "Choose how Google retrieves the generated ONIX metadata and book files. HTTP/HTTPS is pull-based; SFTP/FTP/GCS options stage or push files to the configured destination."
+
+msgid "plugins.generic.googleBooks.deliveryNotReady"
+msgstr "Delivery is not ready"
+
+msgid "plugins.generic.googleBooks.deliveryOperations"
+msgstr "Delivery operations"
+
+msgid "plugins.generic.googleBooks.deliveryOperationsDescription"
+msgstr "Test the selected destination or queue an incremental/forced delivery. Large deliveries run in the OMP background queue."
+
+msgid "plugins.generic.googleBooks.deliveryPayloads"
+msgstr "Files and data to deliver"
+
+msgid "plugins.generic.googleBooks.deliveryReady"
+msgstr "The selected delivery configuration is ready."
+
+msgid "plugins.generic.googleBooks.deliverySettings"
+msgstr "Delivery and file retrieval"
+
+msgid "plugins.generic.googleBooks.deliverySettingsDescription"
+msgstr "Configure the collection codes, Google retrieval method, destination, and the exact metadata/content trees that this press will expose or upload."
+
+msgid "plugins.generic.googleBooks.deliveryUploaded"
+msgstr "Uploaded files"
+
+msgid "plugins.generic.googleBooks.forceDelivery"
+msgstr "Force complete delivery"
+
+msgid "plugins.generic.googleBooks.ftpPassive"
+msgstr "Passive FTP mode"
+
+msgid "plugins.generic.googleBooks.ftpTls"
+msgstr "Use explicit TLS/FTPS when supported"
+
+msgid "plugins.generic.googleBooks.gcsBucket"
+msgstr "Bucket name"
+
+msgid "plugins.generic.googleBooks.gcsDescription"
+msgstr "The plugin writes the managed Google Books tree to a Google Cloud Storage bucket. Grant the Google-provided reader service account access after Google supplies it."
+
+msgid "plugins.generic.googleBooks.gcsGoogleReaderServiceAccount"
+msgstr "Google reader service account"
+
+msgid "plugins.generic.googleBooks.gcsGoogleReaderServiceAccountDescription"
+msgstr "Non-secret service account supplied by Google for the automated fetch. Grant it read/list access to the bucket or prefix."
+
+msgid "plugins.generic.googleBooks.gcsPrefix"
+msgstr "Object prefix"
+
+msgid "plugins.generic.googleBooks.gcsWriterServiceAccount"
+msgstr "Publisher writer service-account JSON"
+
+msgid "plugins.generic.googleBooks.gcsWriterServiceAccountDescription"
+msgstr "Service-account JSON used only by this OMP installation to upload objects to your bucket. It is encrypted at rest and never displayed again."
+
+msgid "plugins.generic.googleBooks.googleAuthentication"
+msgstr "Google authentication"
+
+msgid "plugins.generic.googleBooks.googleAuthenticationDescription"
+msgstr "Manage the Google Books API credential, Partner Center identifier, crawler authentication, and secure credentials used by remote delivery methods."
+
+msgid "plugins.generic.googleBooks.googleDirectoryLayout"
+msgstr "Google Books directory layout"
+
+msgid "plugins.generic.googleBooks.googleDirectoryLayoutDescription"
+msgstr "The same logical tree is generated for HTTP, SFTP, FTP, Google Cloud Storage, and protected local export."
+
+msgid "plugins.generic.googleBooks.googleSftpDescription"
+msgstr "Use the SFTP dropbox credentials supplied by Google. OMP pushes only new or modified managed files and never needs inbound HTTP Basic authentication."
+
+msgid "plugins.generic.googleBooks.hostKeyFingerprint"
+msgstr "SSH host-key fingerprint"
+
+msgid "plugins.generic.googleBooks.hostKeyFingerprintDescription"
+msgstr "Optional SHA256 or MD5 fingerprint used to pin the SFTP server host key when supported by libcurl."
+
+msgid "plugins.generic.googleBooks.httpCrawlerAuthentication"
+msgstr "HTTP/HTTPS crawler authentication"
+
+msgid "plugins.generic.googleBooks.httpCrawlerAuthenticationDescription"
+msgstr "Credentials used only when Google fetches the virtual OMP feed over HTTP/HTTPS. They are not used by SFTP, FTP or Google Cloud Storage delivery."
+
+msgid "plugins.generic.googleBooks.httpPullDescription"
+msgstr "Google periodically fetches the authenticated virtual ONIX and eBook directories directly from this OMP installation. The protocol follows the public press URL."
+
+msgid "plugins.generic.googleBooks.lastDelivery"
+msgstr "Latest file delivery"
+
+msgid "plugins.generic.googleBooks.localExportDescription"
+msgstr "Creates the complete managed tree inside OMP files_dir/googleBooksDelivery/<context>. This is a protected fallback for manual transfer or external automation; Google cannot fetch it directly unless another service publishes it."
+
+msgid "plugins.generic.googleBooks.modeGcs"
+msgstr "Google Cloud Storage bucket"
+
+msgid "plugins.generic.googleBooks.modeGoogleSftp"
+msgstr "Google-provided SFTP Dropbox"
+
+msgid "plugins.generic.googleBooks.modeHttpPull"
+msgstr "HTTP/HTTPS automated fetch from OMP"
+
+msgid "plugins.generic.googleBooks.modeLocalExport"
+msgstr "Protected local export"
+
+msgid "plugins.generic.googleBooks.modePublisherFtp"
+msgstr "Publisher-managed FTP/FTPS server"
+
+msgid "plugins.generic.googleBooks.modePublisherSftp"
+msgstr "Publisher-managed SFTP server"
+
+msgid "plugins.generic.googleBooks.payloadEbooks"
+msgstr "EPUB / PDF / cover files"
+
+msgid "plugins.generic.googleBooks.payloadOnixFull"
+msgstr "Bibliographic ONIX - full"
+
+msgid "plugins.generic.googleBooks.payloadOnixRights"
+msgstr "Rights and sales ONIX - rights"
+
+msgid "plugins.generic.googleBooks.payloadValidation"
+msgstr "ONIX validation sample"
+
+msgid "plugins.generic.googleBooks.publisherFtpDescription"
+msgstr "OMP stages the generated tree on an FTP server that Google can fetch. TLS/FTPS can be enabled when the server and PHP support it."
+
+msgid "plugins.generic.googleBooks.publisherSftpDescription"
+msgstr "OMP stages the generated tree on your SFTP server; Google can then fetch the same directory structure from that server."
+
+msgid "plugins.generic.googleBooks.remoteAuthentication"
+msgstr "Remote delivery authentication"
+
+msgid "plugins.generic.googleBooks.remoteAuthenticationDescription"
+msgstr "Store credentials for Google SFTP Dropbox, publisher SFTP/FTP and Google Cloud Storage. Reversible secrets are encrypted with the OMP application key and are never shown back in the dashboard."
+
+msgid "plugins.generic.googleBooks.remoteHost"
+msgstr "Server host"
+
+msgid "plugins.generic.googleBooks.remotePassword"
+msgstr "Password"
+
+msgid "plugins.generic.googleBooks.remotePort"
+msgstr "Port"
+
+msgid "plugins.generic.googleBooks.remoteRoot"
+msgstr "Remote root directory"
+
+msgid "plugins.generic.googleBooks.remoteUsername"
+msgstr "Username"
+
+msgid "plugins.generic.googleBooks.secretAlreadyStored"
+msgstr "A credential is already stored. Leave this field blank to keep it."
+
+msgid "plugins.generic.googleBooks.secretLeaveBlank"
+msgstr "Leave blank to keep the existing value or until Google supplies the credential."
+
+msgid "plugins.generic.googleBooks.secretSecurityDescription"
+msgstr "Passwords, SSH private keys, passphrases and service-account JSON are encrypted at rest with OMP general.app_key. HTTP crawler passwords remain one-way password hashes. Secret values are never included in diagnostics."
+
+msgid "plugins.generic.googleBooks.sftpAuthMode"
+msgstr "SFTP authentication"
+
+msgid "plugins.generic.googleBooks.sftpKeyAuth"
+msgstr "SSH private key"
+
+msgid "plugins.generic.googleBooks.sftpKeyPassphrase"
+msgstr "Private-key passphrase"
+
+msgid "plugins.generic.googleBooks.sftpPasswordAuth"
+msgstr "Username and password"
+
+msgid "plugins.generic.googleBooks.sftpPrivateKey"
+msgstr "SSH private key"
+
+msgid "plugins.generic.googleBooks.sftpPrivateKeyDescription"
+msgstr "Paste a PEM/OpenSSH private key only when the SFTP endpoint requires key authentication. The key is encrypted at rest."
+
+msgid "plugins.generic.googleBooks.tabAuthentication"
+msgstr "Authentication"
+
+msgid "plugins.generic.googleBooks.tabCatalog"
+msgstr "Catalog"
+
+msgid "plugins.generic.googleBooks.tabDelivery"
+msgstr "Delivery & files"
+
+msgid "plugins.generic.googleBooks.tabOverview"
+msgstr "Overview"
+
+msgid "plugins.generic.googleBooks.testConnection"
+msgstr "Test connection"
+
+msgid "plugins.generic.googleBooks.transportCapabilities"
+msgstr "Server transport capabilities"
+
+msgid "plugins.generic.googleBooks.transportCapabilitiesDescription"
+msgstr "Runtime check for the PHP extensions and libcurl protocols required by each supported delivery path."
+
+msgid "plugins.generic.googleBooks.message.crawlerAuthSaved"
+msgstr "HTTP/HTTPS crawler authentication was saved."
+
+msgid "plugins.generic.googleBooks.message.deliveryQueued"
+msgstr "Google Books delivery was queued in the OMP background worker."
+
+msgid "plugins.generic.googleBooks.message.deliverySettingsSaved"
+msgstr "Delivery and file retrieval settings were saved."
+
+msgid "plugins.generic.googleBooks.message.deliveryTestFailed"
+msgstr "The selected delivery connection test failed. Review the diagnostic below."
+
+msgid "plugins.generic.googleBooks.message.deliveryTestSucceeded"
+msgstr "The selected delivery connection test succeeded."
+
+msgid "plugins.generic.googleBooks.message.transportAuthSaved"
+msgstr "Remote delivery credentials were saved securely."

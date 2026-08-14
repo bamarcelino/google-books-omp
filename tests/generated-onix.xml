@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage xmlns="http://ns.editeur.org/onix/3.0/reference" release="3.0">
+  <Header>
+    <Sender>
+      <SenderName>Test Publisher</SenderName>
+      <ContactName>Editor Name</ContactName>
+      <EmailAddress>editor@example.org</EmailAddress>
+    </Sender>
+    <Addressee>
+      <AddresseeName>Google</AddresseeName>
+    </Addressee>
+    <SentDateTime>20260813T163045Z</SentDateTime>
+  </Header>
+  <Product>
+    <RecordReference>9780306406157</RecordReference>
+    <NotificationType>03</NotificationType>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9780306406157</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductComposition>00</ProductComposition>
+      <ProductForm>EA</ProductForm>
+      <ProductFormDetail>E107</ProductFormDetail>
+      <ProductFormDetail>E101</ProductFormDetail>
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <CollectionIdentifier>
+          <CollectionIDType>02</CollectionIDType>
+          <IDValue>20493630</IDValue>
+        </CollectionIdentifier>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <TitleText>Test Series</TitleText>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <TitleText>The Test Book</TitleText>
+          <Subtitle>A Subtitle</Subtitle>
+        </TitleElement>
+      </TitleDetail>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <NameIdentifier>
+          <NameIDType>21</NameIDType>
+          <IDValue>0000-0002-1825-0097</IDValue>
+        </NameIdentifier>
+        <PersonName>Jane Doe</PersonName>
+      </Contributor>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      <TextContent>
+        <TextType>03</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text>A test description.</Text>
+      </TextContent>
+    </CollateralDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Test Imprint</ImprintName>
+      </Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>Test Publisher</PublisherName>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date dateformat="00">20260813</Date>
+      </PublishingDate>
+      <SalesRights>
+        <SalesRightsType>02</SalesRightsType>
+        <Territory>
+          <RegionsIncluded>WORLD</RegionsIncluded>
+        </Territory>
+      </SalesRights>
+    </PublishingDetail>
+    <ProductSupply>
+      <Market>
+        <Territory>
+          <RegionsIncluded>WORLD</RegionsIncluded>
+        </Territory>
+      </Market>
+      <MarketPublishingDetail>
+        <MarketPublishingStatus>04</MarketPublishingStatus>
+      </MarketPublishingDetail>
+      <SupplyDetail>
+        <Supplier>
+          <SupplierRole>09</SupplierRole>
+          <SupplierName>Test Publisher</SupplierName>
+        </Supplier>
+        <ProductAvailability>20</ProductAvailability>
+        <UnpricedItemType>01</UnpricedItemType>
+      </SupplyDetail>
+    </ProductSupply>
+  </Product>
+</ONIXMessage>
