@@ -1,0 +1,31 @@
+name: Find exact Google Books part-ag segment
+
+on:
+  push:
+    paths:
+      - '.bootstrap/TRIGGER-FIND-AG'
+
+permissions:
+  contents: read
+
+jobs:
+  find:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find exact 10K segment
+        shell: bash
+        run: |
+          set -euo pipefail
+          target='d2280a8858747395f0bb05295d36cc63b0320db0dc55b5947fb5bf9db3969c4a'
+          found=0
+          for f in .bootstrap/*; do
+            [ -f "$f" ] || continue
+            [ "$(wc -c < "$f")" -ge 10000 ] || continue
+            h=$(head -c 10000 "$f" | sha256sum | cut -d' ' -f1)
+            if [ "$h" = "$target" ]; then
+              echo "MATCH $f"
+              found=1
+            fi
+          done
+          echo "found=$found"
