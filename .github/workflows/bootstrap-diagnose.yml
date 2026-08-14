@@ -1,0 +1,36 @@
+name: Diagnose Google Books bootstrap fragments
+
+on:
+  push:
+    paths:
+      - '.bootstrap/TRIGGER-DIAGNOSE'
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect reconstructed Base64 lengths
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in \
+            .bootstrap/part-aa .bootstrap/part-ab .bootstrap/part-ac .bootstrap/part-ad .bootstrap/part-ae .bootstrap/part-af \
+            .bootstrap/part-ag .bootstrap/fix-ag-b .bootstrap/part-ah .bootstrap/part-ai .bootstrap/rem-04 .bootstrap/rem-05 \
+            .bootstrap/final-00 .bootstrap/final-01 .bootstrap/final-02 .bootstrap/final-03 .bootstrap/final-04 .bootstrap/final-05 \
+            .bootstrap/final-06 .bootstrap/final-07 .bootstrap/final-08 .bootstrap/final-09; do
+            clean=$(LC_ALL=C tr -cd 'A-Za-z0-9+/=' < "$f" | wc -c)
+            raw=$(wc -c < "$f")
+            echo "$f raw=$raw clean=$clean"
+          done
+          {
+            cat .bootstrap/part-aa .bootstrap/part-ab .bootstrap/part-ac .bootstrap/part-ad .bootstrap/part-ae .bootstrap/part-af
+            head -c 10000 .bootstrap/part-ag
+            cat .bootstrap/fix-ag-b .bootstrap/part-ah .bootstrap/part-ai .bootstrap/rem-04 .bootstrap/rem-05
+            cat .bootstrap/final-00 .bootstrap/final-01 .bootstrap/final-02 .bootstrap/final-03 .bootstrap/final-04 .bootstrap/final-05 .bootstrap/final-06 .bootstrap/final-07 .bootstrap/final-08 .bootstrap/final-09
+          } | LC_ALL=C tr -cd 'A-Za-z0-9+/=' > /tmp/reconstructed.b64
+          echo "combined_clean=$(wc -c < /tmp/reconstructed.b64)"
+          echo "combined_tail=$(tail -c 80 /tmp/reconstructed.b64)"
