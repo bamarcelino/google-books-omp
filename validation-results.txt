@@ -1,0 +1,14 @@
+Google Books Integration for OMP 0.1.2.1 - Final validation
+Date: 2026-08-14
+
+OK 212 core behavior/auth/secret/delivery assertions
+OK 42 repository assertions, including delivery-file state
+OK 24 mapper/DAO/code-24 ISBN assertions
+OK 16 settings migration assertions
+OK 201 package/locale/security/source-contract checks
+OK 50 OMP 3.5 compatibility smoke assertions
+OK 40 dashboard operation/persistence/queue smoke assertions
+OK 585/585 total behavioral/contract assertions
+OK dashboard navigation: versioned cache-busted assets, direct script fallback, late-load-safe idempotent bootstrap, native radio/CSS no-JavaScript tabs
+OK 42 PHP files linted with php -l
+OK security scan: no known real deployment domains, collection codes, or temporary credentials in distributed source
