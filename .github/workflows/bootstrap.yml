@@ -21,29 +21,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat \
-            .bootstrap/part-aa \
-            .bootstrap/part-ab \
-            .bootstrap/part-ac \
-            .bootstrap/part-ad \
-            .bootstrap/part-ae \
-            .bootstrap/part-af \
-            .bootstrap/part-ag \
-            .bootstrap/part-ah \
-            .bootstrap/part-ai \
-            .bootstrap/rem-04 \
-            .bootstrap/rem-05 \
-            .bootstrap/final-00 \
-            .bootstrap/final-01 \
-            .bootstrap/final-02 \
-            .bootstrap/final-03 \
-            .bootstrap/final-04 \
-            .bootstrap/final-05 \
-            .bootstrap/final-06 \
-            .bootstrap/final-07 \
-            .bootstrap/final-08 \
-            .bootstrap/final-09 \
-            | tr -d '[:space:]' > /tmp/googleBooks-package.b64
+          {
+            cat .bootstrap/part-aa .bootstrap/part-ab .bootstrap/part-ac .bootstrap/part-ad .bootstrap/part-ae .bootstrap/part-af
+            head -c 10000 .bootstrap/part-ag
+            cat .bootstrap/fix-ag-b .bootstrap/part-ah .bootstrap/part-ai .bootstrap/rem-04 .bootstrap/rem-05
+            cat .bootstrap/final-00 .bootstrap/final-01 .bootstrap/final-02 .bootstrap/final-03 .bootstrap/final-04 .bootstrap/final-05 .bootstrap/final-06 .bootstrap/final-07 .bootstrap/final-08 .bootstrap/final-09
+          } | tr -d '[:space:]' > /tmp/googleBooks-package.b64
           base64 --decode /tmp/googleBooks-package.b64 > /tmp/googleBooks-0.1.2.1.zip
           echo "0a6112f1482ae22d87a283cd51a0cf9aa6ae32faf84ae7f0626bed9b05881cb3  /tmp/googleBooks-0.1.2.1.zip" | sha256sum -c -
           rm -rf /tmp/googleBooks-extracted
