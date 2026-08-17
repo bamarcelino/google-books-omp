@@ -13,6 +13,7 @@ use APP\core\Application;
 use APP\facades\Repo;
 use APP\plugins\generic\googleBooks\classes\Delivery\DeliveryConfig;
 use APP\plugins\generic\googleBooks\classes\Delivery\DeliveryManager;
+use APP\plugins\generic\googleBooks\classes\Delivery\SftpEndpoint;
 use APP\plugins\generic\googleBooks\classes\Delivery\TransportCapabilities;
 use APP\plugins\generic\googleBooks\classes\Feed\FeedManifestService;
 use APP\plugins\generic\googleBooks\classes\Jobs\CatalogDiscoveryJob;
@@ -136,7 +137,7 @@ final class DashboardHandler extends \APP\handler\Handler
         // Cache-bust dashboard assets on every plugin release. OMP installations
         // are frequently upgraded in-place and browsers/CDNs may otherwise keep
         // the previous dashboard.js under the unchanged plugin path.
-        $assetVersion = '0.1.2.2';
+        $assetVersion = '0.1.2.3';
         $dashboardCssUrl = $assetBase . '/styles/dashboard.css?v=' . rawurlencode($assetVersion);
         $dashboardJsUrl = $assetBase . '/scripts/dashboard.js?v=' . rawurlencode($assetVersion);
         $templateMgr->addStyleSheet(
@@ -615,10 +616,15 @@ final class DashboardHandler extends \APP\handler\Handler
         }
 
         foreach (['googleSftp', 'publisherSftp'] as $prefix) {
-            $this->plugin->updateSetting($contextId, $prefix . 'Host', trim((string) $request->getUserVar($prefix . 'Host')), 'string');
             $port = (int) $request->getUserVar($prefix . 'Port');
-            $this->plugin->updateSetting($contextId, $prefix . 'Port', $port > 0 ? $port : 22, 'int');
-            $this->plugin->updateSetting($contextId, $prefix . 'RemoteRoot', trim((string) $request->getUserVar($prefix . 'RemoteRoot')), 'string');
+            $endpoint = SftpEndpoint::parse(
+                (string) $request->getUserVar($prefix . 'Host'),
+                $port > 0 ? $port : 22,
+                (string) $request->getUserVar($prefix . 'RemoteRoot'),
+            );
+            $this->plugin->updateSetting($contextId, $prefix . 'Host', $endpoint['host'], 'string');
+            $this->plugin->updateSetting($contextId, $prefix . 'Port', $endpoint['port'], 'int');
+            $this->plugin->updateSetting($contextId, $prefix . 'RemoteRoot', $endpoint['remoteRoot'], 'string');
             $this->plugin->updateSetting($contextId, $prefix . 'HostKeyFingerprint', trim((string) $request->getUserVar($prefix . 'HostKeyFingerprint')), 'string');
         }
 

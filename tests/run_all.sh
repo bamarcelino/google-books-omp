@@ -9,6 +9,7 @@ php tests/run.php
 php tests/repository_smoke.php
 php tests/mapper_smoke.php
 php tests/settings_migration_smoke.php
+php tests/sftp_endpoint_smoke.php
 python3 tests/package_check.py
 php tests/omp35_smoke.php
 

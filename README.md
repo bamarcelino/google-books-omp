@@ -1,9 +1,9 @@
 # Google Books Integration for OMP
 
 
-### 0.1.2.2 security hardening + multi-transport delivery
+### 0.1.2.3 SFTP endpoint hardening + staged transport diagnostics
 
-This release adds a transport-neutral Google delivery layer and a dedicated dashboard authentication workspace. The plugin can keep Google's HTTP/HTTPS pull model, push to a Google-provided SFTP Dropbox, push to a publisher-controlled SFTP or FTP/FTPS server, stage the same Google directory tree in Google Cloud Storage, or write a protected local export as an operational fallback. Outbound credentials are encrypted reversibly with the OMP application key; the incoming HTTP crawler password remains one-way hashed. Incremental delivery state prevents unchanged files from being retransmitted unnecessarily. Google Books API discovery remains independent from publisher delivery.
+Release 0.1.2.3 hardens the transport layer discovered during live Google-provided SFTP onboarding. SFTP endpoints now accept bare hosts, host:port values and complete `sftp://` URLs without ever treating the scheme as a hostname, and the non-destructive connection test no longer requires directory-list permission on upload-only Dropbox accounts. Connection diagnostics distinguish DNS, TCP refusal/timeout, SSH authentication, host-key and remote-access failures, report cURL/OS error codes and resolved/primary IPs, and retry IPv4 after eligible network failures. HTTP/HTTPS pull testing now evaluates the last external Basic-auth diagnostic instead of reporting a generic success when the server stripped `Authorization`.
 
 Publisher-neutral Google Books / Google Play Books synchronization for **Open Monograph Press 3.5.x**.
 
@@ -12,7 +12,7 @@ Publisher-neutral Google Books / Google Play Books synchronization for **Open Mo
 - License: **GNU GPL v3 or later**
 - Installation directory/product: `googleBooks`
 - Canonical OMP runtime/settings key: `googlebooksplugin`
-- Current release: `0.1.2.2`
+- Current release: `0.1.2.3`
 - Primary compatibility target: **OMP 3.5.0-5 LTS**
 
 ## What the plugin does
@@ -80,7 +80,7 @@ The public Google Books API does not provide a publisher endpoint that uploads a
 1. **Google Books API** - exact discovery and later verification by ISBN.
 2. **Google publisher delivery** - exposes or transfers ONIX, EPUB, PDF and cover assets using the transport selected for the press.
 
-Release 0.1.2.2 supports every server/transport choice exposed by Google's automated-content onboarding form, plus a protected local staging fallback:
+Release 0.1.2.3 supports every server/transport choice exposed by Google's automated-content onboarding form, plus a protected local staging fallback:
 
 - **HTTP/HTTPS pull** - Google fetches the authenticated virtual OMP feed;
 - **Google-provided SFTP Dropbox** - OMP pushes files to the SFTP dropbox credentials supplied by Google;
@@ -210,7 +210,7 @@ The dashboard uses OMP 3.5's native backend form/button vocabulary (`pkp_form`, 
 10. Enable delivery. HTTP/HTTPS remains available for Google to pull; other modes can be sent with **Deliver now** and continue through queued catalogue synchronization.
 11. Use **Force delivery** only when the current resources must be retransmitted even though their fingerprints have not changed.
 
-For a **Google-provided SFTP Dropbox**, select that mode first and leave Google-supplied connection fields empty until Google sends the SFTP credentials. Once received, store them under **Authentication**, test the connection, and then run delivery.
+For a **Google-provided SFTP Dropbox**, select that mode first and leave Google-supplied connection fields empty until Google sends the SFTP credentials. Once received, store them under **Authentication**, test the connection, and then run delivery. The server field accepts `example.test`, `example.test:2222`, `sftp://example.test` or `sftp://example.test:2222/path`; host, port and optional path are normalized before use, and credentials embedded in the URL are rejected. The connection test is deliberately non-destructive and does not require directory listing because Google-provided Dropbox accounts may be upload-only; actual write permission is confirmed by the first delivery.
 
 Google must still configure/approve the publisher ingestion for the collection code. The plugin cannot bypass Google-side onboarding.
 
@@ -298,7 +298,7 @@ Then install/enable it in the OMP plugin manager so the database migration is ap
 
 ## Upgrade from earlier releases
 
-Do not uninstall an older release before updating. Upload 0.1.2.2 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration adds the delivery-file state table required for incremental multi-transport synchronization.
+Do not uninstall an older release before updating. Upload 0.1.2.3 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration adds the delivery-file state table required for incremental multi-transport synchronization.
 
 Existing 0.1.1.x installations default to **HTTP/HTTPS pull**, preserving prior behavior until a manager explicitly selects a different transport. Existing HTTP crawler username/password settings remain valid. Outbound transport secrets introduced in 0.1.2.0 are stored separately and encrypted.
 

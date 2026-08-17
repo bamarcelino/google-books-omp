@@ -95,21 +95,26 @@ final class DeliveryManager
         $started = microtime(true);
         try {
             if ($mode === DeliveryConfig::HTTP_PULL) {
-                $result = [
-                    'ok' => true,
-                    'message' => 'HTTP/HTTPS pull uses the OMP virtual feed. The last external Basic-Auth request is reported separately in the authentication diagnostic.',
-                ];
+                $result = $this->testHttpPull($contextId);
             } else {
                 $transport = $this->transport($contextId, $config);
                 $result = $transport->test();
             }
             $diagnostic = [
                 'timestamp' => gmdate('c'),
-                'status' => 'success',
+                'status' => !empty($result['ok']) ? 'success' : 'failed',
                 'mode' => $mode,
-                'message' => (string) ($result['message'] ?? 'Connection test succeeded.'),
+                'message' => (string) ($result['message'] ?? 'Connection test completed.'),
                 'durationMs' => (int) round((microtime(true) - $started) * 1000),
             ];
+            foreach ([
+                'stage', 'host', 'port', 'remoteRoot', 'authMode', 'resolvedIps', 'primaryIp',
+                'curlCode', 'osErrno', 'ipStrategy', 'endpointNormalized', 'credentialSource',
+            ] as $key) {
+                if (array_key_exists($key, $result)) {
+                    $diagnostic[$key] = $result[$key];
+                }
+            }
             $this->storeDiagnostic($contextId, 'deliveryConnectionDiagnostic', $diagnostic);
             return $diagnostic;
         } catch (Throwable $e) {
@@ -117,6 +122,7 @@ final class DeliveryManager
                 'timestamp' => gmdate('c'),
                 'status' => 'failed',
                 'mode' => $mode,
+                'stage' => 'exception',
                 'message' => $this->safeError($e),
                 'durationMs' => (int) round((microtime(true) - $started) * 1000),
             ];
@@ -213,6 +219,51 @@ final class DeliveryManager
         }
         $this->storeDeliveryDiagnostic($contextId, $result);
         return $result;
+    }
+
+    /** @return array<string,mixed> */
+    private function testHttpPull(int $contextId): array
+    {
+        $raw = trim((string) $this->plugin->getSetting($contextId, 'feedAuthDiagnostic'));
+        if ($raw === '') {
+            return [
+                'ok' => false,
+                'stage' => 'awaiting_external_request',
+                'message' => 'HTTP/HTTPS pull is configured, but no external Basic-Auth request has been observed since the last credential/configuration change. Send one authenticated request to the feed, then test again.',
+            ];
+        }
+        $diagnostic = json_decode($raw, true);
+        if (!is_array($diagnostic)) {
+            return ['ok' => false, 'stage' => 'http_diagnostic', 'message' => 'The stored HTTP feed authentication diagnostic is unreadable; generate a fresh external request.'];
+        }
+        if (!empty($diagnostic['authenticated'])) {
+            return [
+                'ok' => true,
+                'stage' => 'http_authenticated',
+                'credentialSource' => (string) ($diagnostic['credentialSource'] ?? 'unknown'),
+                'message' => 'The most recent external HTTP/HTTPS feed request reached PHP with valid Basic credentials.',
+            ];
+        }
+        if (empty($diagnostic['authorizationPresent']) && empty($diagnostic['nativeUserPresent'])) {
+            return [
+                'ok' => false,
+                'stage' => 'http_authorization',
+                'credentialSource' => (string) ($diagnostic['credentialSource'] ?? 'none'),
+                'message' => 'The most recent external request did not expose Authorization or PHP_AUTH_USER to PHP. The web server, FastCGI/PHP-FPM, reverse proxy or WAF must forward the HTTP Authorization header unchanged.',
+            ];
+        }
+        if (!empty($diagnostic['authorizationPresent']) && empty($diagnostic['authorizationIsBasic'])) {
+            return ['ok' => false, 'stage' => 'http_basic_scheme', 'message' => 'Authorization reached PHP, but the most recent header was not an HTTP Basic credential.'];
+        }
+        if (!empty($diagnostic['authorizationIsBasic']) && empty($diagnostic['authorizationDecoded'])) {
+            return ['ok' => false, 'stage' => 'http_basic_decode', 'message' => 'A Basic Authorization header reached PHP but could not be decoded as username:password.'];
+        }
+        return [
+            'ok' => false,
+            'stage' => 'http_credentials',
+            'credentialSource' => (string) ($diagnostic['credentialSource'] ?? 'unknown'),
+            'message' => 'HTTP Basic credentials reached PHP but did not match the configured feed username/password. Regenerate or re-enter the crawler credentials and retry.',
+        ];
     }
 
     private function transport(int $contextId, array $config): object

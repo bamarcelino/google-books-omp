@@ -63,9 +63,14 @@ final class DeliveryConfig
 
         if (in_array($mode, [self::GOOGLE_SFTP, self::PUBLISHER_SFTP], true)) {
             $prefix = $mode === self::GOOGLE_SFTP ? 'googleSftp' : 'publisherSftp';
+            $endpoint = SftpEndpoint::parse(
+                (string) $plugin->getSetting($contextId, $prefix . 'Host'),
+                (int) ($plugin->getSetting($contextId, $prefix . 'Port') ?: 22),
+                (string) $plugin->getSetting($contextId, $prefix . 'RemoteRoot'),
+            );
             $config += [
-                'host' => trim((string) $plugin->getSetting($contextId, $prefix . 'Host')),
-                'port' => max(1, (int) ($plugin->getSetting($contextId, $prefix . 'Port') ?: 22)),
+                'host' => $endpoint['host'],
+                'port' => $endpoint['port'],
                 'username' => trim((string) $plugin->getSetting($contextId, $prefix . 'Username')),
                 'password' => self::secret($plugin, $contextId, $prefix . 'PasswordEncrypted'),
                 'privateKey' => self::secret($plugin, $contextId, $prefix . 'PrivateKeyEncrypted'),
@@ -73,8 +78,9 @@ final class DeliveryConfig
                 'authMode' => in_array((string) $plugin->getSetting($contextId, $prefix . 'AuthMode'), ['password', 'private_key'], true)
                     ? (string) $plugin->getSetting($contextId, $prefix . 'AuthMode')
                     : 'password',
-                'remoteRoot' => self::remoteRoot((string) $plugin->getSetting($contextId, $prefix . 'RemoteRoot')),
+                'remoteRoot' => $endpoint['remoteRoot'],
                 'hostKeyFingerprint' => trim((string) $plugin->getSetting($contextId, $prefix . 'HostKeyFingerprint')),
+                'endpointNormalized' => $endpoint['normalized'],
             ];
             return $config;
         }

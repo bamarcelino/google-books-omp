@@ -19,14 +19,14 @@ for rel in [
     'GoogleBooksPlugin.php', 'version.xml', 'upgrade.xml', 'LICENSE', 'README.md', 'VALIDATION.md', 'CHANGELOG.md',
     'classes/Api/GoogleBooksApiClient.php', 'classes/Feed/FeedHandler.php', 'classes/Jobs/CatalogDiscoveryJob.php', 'classes/Jobs/SubmissionDiscoveryJob.php',
     'classes/Delivery/DeliveryConfig.php', 'classes/Delivery/DeliveryManager.php', 'classes/Delivery/DeliveryManifestService.php',
-    'classes/Delivery/SftpTransport.php', 'classes/Delivery/FtpTransport.php', 'classes/Delivery/GoogleCloudStorageTransport.php', 'classes/Delivery/LocalExportTransport.php', 'classes/Delivery/TransportCapabilities.php',
+    'classes/Delivery/SftpEndpoint.php', 'classes/Delivery/SftpTransport.php', 'classes/Delivery/FtpTransport.php', 'classes/Delivery/GoogleCloudStorageTransport.php', 'classes/Delivery/LocalExportTransport.php', 'classes/Delivery/TransportCapabilities.php',
     'classes/Jobs/DeliveryJob.php', 'classes/Repository/GoogleBooksDeliveryRepository.php', 'classes/Security/SecretStore.php',
     'classes/Migration/PluginSettingsMigrator.php',
     'classes/Onix/GoogleOnixBuilder.php', 'classes/Sync/GoogleBooksSyncService.php',
     'templates/dashboard.tpl', 'templates/publicIdentifier.tpl', 'styles/dashboard.css', 'scripts/dashboard.js',
     'locale/en/locale.po', 'locale/es/locale.po', 'locale/pt_BR/locale.po',
     'tests/run.php', 'tests/repository_smoke.php', 'tests/mapper_smoke.php',
-    'tests/omp35_smoke.php', 'tests/settings_migration_smoke.php', 'tests/package_check.py', 'tests/run_all.sh',
+    'tests/omp35_smoke.php', 'tests/settings_migration_smoke.php', 'tests/sftp_endpoint_smoke.php', 'tests/package_check.py', 'tests/run_all.sh',
 ]:
     check((ROOT / rel).is_file(), f'missing required file: {rel}')
 
@@ -37,8 +37,8 @@ vals = {child.tag: (child.text or '').strip() for child in version if isinstance
 check(vals.get('application') == 'googleBooks', 'version.xml application mismatch')
 check(vals.get('type') == 'plugins.generic', 'version.xml plugin type mismatch')
 check(vals.get('class') == 'GoogleBooksPlugin', 'version.xml class mismatch')
-check(vals.get('lazy-load') == '0', '0.1.2.2 must remain non-lazy to repair legacy enabled settings')
-check(vals.get('release') == '0.1.2.2', 'version.xml release mismatch')
+check(vals.get('lazy-load') == '0', '0.1.2.3 must remain non-lazy to repair legacy enabled settings')
+check(vals.get('release') == '0.1.2.3', 'version.xml release mismatch')
 
 # OMP plugin-upgrade descriptor contract
 upgrade = etree.parse(str(ROOT / 'upgrade.xml'), parser).getroot()
@@ -156,6 +156,16 @@ check("'q' => 'isbn:' . $isbn" in api, 'Google Books exact ISBN query missing')
 check('IdentifierNormalizer::isbnEquivalents' in api, 'Google Books identifier normalization missing')
 check('ambiguous: true' in api, 'multiple exact Google Volume detection missing')
 check('RequestException' in api and "'HTTP ' . $last->getResponse()->getStatusCode()" in api, 'Google API error sanitization contract missing')
+check("GoogleBooksIntegrationForOMP/0.1.2.3" in api, 'Google Books API User-Agent release mismatch')
+
+sftp_endpoint_source = (ROOT / 'classes/Delivery/SftpEndpoint.php').read_text(encoding='utf-8')
+sftp_source = (ROOT / 'classes/Delivery/SftpTransport.php').read_text(encoding='utf-8')
+delivery_manager_source = (ROOT / 'classes/Delivery/DeliveryManager.php').read_text(encoding='utf-8')
+check('parse_url' in sftp_endpoint_source and 'Do not place SFTP usernames or passwords inside the server/host field' in sftp_endpoint_source, 'SFTP endpoint normalization/userinfo rejection contract missing')
+check('CURLOPT_CONNECT_ONLY' in sftp_source and 'CURLOPT_DIRLISTONLY' not in sftp_source, 'non-destructive SFTP connection test still requires remote directory listing')
+check('CURLINFO_OS_ERRNO' in sftp_source and 'CURLINFO_PRIMARY_IP' in sftp_source and 'resolvedIps' in sftp_source, 'SFTP staged network diagnostic contract missing')
+check('ipv4_fallback' in sftp_source and 'CURLOPT_IPRESOLVE' in sftp_source, 'SFTP IPv4 fallback contract missing')
+check('awaiting_external_request' in delivery_manager_source and 'http_authorization' in delivery_manager_source and 'authorizationPresent' in delivery_manager_source, 'HTTP pull Authorization diagnostic test contract missing')
 
 repository = (ROOT / 'classes/Repository/GoogleBooksStateRepository.php').read_text(encoding='utf-8')
 check('if ($match->found)' in repository and 'Never erase a previously linked Google ID' in repository, 'previous Google Volume linkage preservation contract missing')
@@ -258,7 +268,7 @@ check(all(mode in delivery_config for mode in ["HTTP_PULL = 'http_pull'", "GOOGL
 check("aes-256-gcm" in secret_store and "general', 'app_key'" in secret_store and 'Authorization' not in secret_store, 'recoverable secret encryption contract is incomplete')
 check('encryptApiKey' in secret_store and 'decryptApiKey' in secret_store and "API_PREFIX = 'gbapi:v1:'" in secret_store, 'Google Books API-key encrypted envelope is missing')
 check('getGoogleApiKey' in plugin_source and 'setGoogleApiKey' in plugin_source and "'googleApiKeyEncrypted'" in plugin_source, 'plugin API-key encrypted storage accessors are missing')
-check('GoogleBooksIntegrationForOMP/0.1.2.2' in (ROOT / 'classes/Api/GoogleBooksApiClient.php').read_text(encoding='utf-8'), 'Google Books API User-Agent does not match the current plugin release')
+check('GoogleBooksIntegrationForOMP/0.1.2.3' in (ROOT / 'classes/Api/GoogleBooksApiClient.php').read_text(encoding='utf-8'), 'Google Books API User-Agent does not match the current plugin release')
 check("updateSetting($contextId, 'googleApiKey', $newApiKey" not in handler, 'dashboard still writes a new Google Books API key in plaintext')
 check('google_books_delivery_files' in delivery_migration and "path_hash" in delivery_migration and "transport_key" in delivery_migration, 'incremental delivery state migration missing')
 check("DeliveryConfig::GOOGLE_SFTP" in delivery_manager and "DeliveryConfig::PUBLISHER_SFTP" in delivery_manager and "DeliveryConfig::PUBLISHER_FTP" in delivery_manager and "DeliveryConfig::GCS" in delivery_manager and "DeliveryConfig::LOCAL_EXPORT" in delivery_manager, 'delivery manager does not route every supported push/staging transport')

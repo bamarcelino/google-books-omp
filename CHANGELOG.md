@@ -1,3 +1,15 @@
+## 0.1.2.3 - 2026-08-17
+
+- Normalizes Google/publisher SFTP server input from bare host, host:port, complete `sftp://` URL, bracketed IPv6, and documentation-escaped `sftp\://` forms; URL userinfo is rejected so credentials cannot be accidentally persisted in the host field.
+- Extracts an explicit URL port and optional URL path safely, while the dedicated remote-root field remains authoritative when both are supplied.
+- Replaces mandatory SFTP directory-list testing with a non-destructive connection-setup probe suitable for Google-provided upload-only Dropbox accounts.
+- Adds staged SFTP diagnostics for DNS, TCP refused/connect failure, timeout, SSH authentication, host-key verification, remote access and unsupported-runtime failures, including safe cURL code, OS errno, resolved IPs and primary IP.
+- Adds an automatic IPv4 retry for DNS/connect/timeout failures and applies the same retry to seekable SFTP upload streams.
+- Improves SFTP private-key interoperability by allowing the SSH backend to derive the public key from the configured private key when supported.
+- Makes the HTTP/HTTPS pull Test connection action evaluate the most recent secret-free Basic-auth diagnostic, explicitly identifying when `Authorization` is stripped before reaching PHP instead of returning a generic success.
+- Persists normalized SFTP host/port/root values from the dashboard and keeps the existing encrypted password/private-key storage unchanged.
+- Updates the Google Books API User-Agent, documentation, package checks and regression suite for release 0.1.2.3.
+
 ## 0.1.2.2 - 2026-08-14
 
 - Encrypts the Google Books API key at rest with a dedicated AES-256-GCM envelope (`gbapi:v1`) derived from OMP `general.app_key`, matching the hardening already used for recoverable SFTP/FTP/GCS credentials.

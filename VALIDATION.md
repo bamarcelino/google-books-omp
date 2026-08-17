@@ -1,16 +1,24 @@
-# Google Books Integration for OMP 0.1.2.2 - Validation Report
+# Google Books Integration for OMP 0.1.2.3 - Validation Report
 
 **Target:** Open Monograph Press 3.5.x, validated against OMP/PKP 3.5.0-5 public contracts  
 **Author:** Bruno Cesar Alves Marcelino  
 **Organization:** Scientia International  
-**Release date:** 2026-08-14
+**Release date:** 2026-08-17
 
 ## Scope
 
-Release 0.1.2.2 retains the 0.1.2.x transport-neutral delivery layer and dashboard navigation repairs while hardening Google Books API-key storage and preserving the prior OMP 3.5 repairs for HTTP Basic authentication diagnostics, dashboard actions, historical ISBN discovery, localization, Google Books API error handling, queue isolation and public identifier placement.
+Release 0.1.2.3 retains the 0.1.2.x transport-neutral delivery layer, encrypted API/transport secrets and dashboard repairs while hardening live SFTP onboarding and connection diagnostics. It preserves the prior OMP 3.5 repairs for HTTP Basic authentication, dashboard actions, ISBN discovery, localization, Google Books API error handling, queue isolation and public identifier placement.
 
 Validation covers plugin code, OMP-facing contracts, identifier normalization, Google Books discovery behavior, ONIX generation, delivery-manifest generation, reversible outbound-secret protection, database state, transport configuration, localization, queue integration and distribution archives. It does not claim that Google has accepted a real publisher feed or credentials; Google-side onboarding remains external.
 
+
+## SFTP endpoint and connection diagnostic hardening
+
+SFTP endpoint parsing is now transport-neutral and deterministic. Regression tests cover bare hosts, host:port, complete `sftp://` URLs, URL path-to-root extraction, dedicated-root precedence, documentation-escaped schemes, bracketed IPv6, invalid ports, non-SFTP schemes and URL userinfo rejection. Existing installations do not require a database migration because runtime configuration is normalized when loaded, and subsequent dashboard saves persist the normalized host/port/root values.
+
+The connection test uses libcurl connection-only setup rather than requiring a directory listing, avoiding false failures on upload-only Google-provided Dropbox accounts. Safe diagnostics classify DNS, TCP refusal/connect failure, timeout, SSH authentication, host-key and remote-access failures; they record no username/password and may include only endpoint host/port, cURL code, OS errno, resolved IPs, primary IP and IP strategy. Eligible DNS/connect/timeout failures receive an explicit IPv4 retry. Actual remote write permission remains a property of the first delivery because the connection test intentionally creates no probe file.
+
+HTTP/HTTPS pull testing now consumes the existing secret-free feed authentication diagnostic. If an external request was observed without `Authorization`/`PHP_AUTH_USER`, the dashboard reports that the web server/FastCGI/reverse-proxy/WAF path must forward the header; the plugin does not fabricate credentials that never reached PHP.
 
 ## Dashboard navigation reliability
 
