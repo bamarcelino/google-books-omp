@@ -140,12 +140,13 @@ The final source tree passes:
 | Repository/database state, including delivery-file state | 42/42 |
 | OMP mapper/DAO/code-24 ISBN regression | 24/24 |
 | Plugin-settings migration | 16/16 |
-| Package, locale, security and source contracts | 207/207 |
+| SFTP endpoint normalization and staged diagnostic regression | 28/28 |
+| Package, locale, security and source contracts | 215/215 |
 | OMP 3.5 compatibility smoke suite | 55/55 |
 | Dashboard POST/persistence/queue smoke suite | 40/40 |
-| **Total behavioral/contract assertions** | **602/602** |
+| **Total behavioral/contract assertions** | **638/638** |
 
-In addition, all **42 PHP files** in the release are linted with `php -l`; any syntax error fails packaging.
+In addition, every PHP file in the release is linted with `php -l`; any syntax error fails packaging.
 
 ## Distribution validation procedure
 

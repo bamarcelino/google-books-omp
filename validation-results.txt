@@ -1,16 +1,19 @@
-Google Books Integration for OMP 0.1.2.2 - Final validation
-Date: 2026-08-14
+Google Books Integration for OMP 0.1.2.3 - Final validation
+Date: 2026-08-17
 
 OK 218 core behavior/auth/secret/delivery assertions
 OK 42 repository assertions, including delivery-file state
 OK 24 mapper/DAO/code-24 ISBN assertions
 OK 16 settings migration assertions
-OK 207 package/locale/security/source-contract checks
+OK 28 SFTP endpoint/diagnostic assertions
+OK 215 package/locale/security/source-contract checks
 OK 55 OMP 3.5 compatibility smoke assertions
 OK 40 dashboard operation/persistence/queue smoke assertions
-OK 602/602 total behavioral/contract assertions
+OK 638/638 total behavioral/contract assertions
+OK SFTP endpoint normalization: bare host, host:port, sftp:// URL, escaped scheme, IPv6, explicit port/path handling and URL-userinfo rejection
+OK non-destructive SFTP connection setup: staged DNS/TCP/timeout/authentication/host-key/remote-access diagnostics with safe IPv4 fallback
+OK HTTP/HTTPS pull diagnostics: external Basic-auth state distinguishes missing Authorization forwarding from credential mismatch
 OK Google Books API key: AES-256-GCM gbapi:v1 envelope, legacy plaintext migration, tamper rejection, no new plaintext persistence
-OK dashboard navigation: versioned cache-busted assets, direct script fallback, late-load-safe idempotent bootstrap, native radio/CSS no-JavaScript tabs
 OK permanent repository CI: .github/workflows/ci.yml runs tests/run_all.sh on pull requests and main pushes
-OK 42 PHP files linted with php -l
-OK security scan: no known real deployment domains, collection codes, or temporary credentials in distributed source
+OK every PHP source file linted with php -l
+OK security regression scan: no plaintext API keys, private keys or Authorization/Bearer credentials in distributed source
