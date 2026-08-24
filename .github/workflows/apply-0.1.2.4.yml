@@ -1,0 +1,216 @@
+name: Apply Google Books OMP v0.1.2.4
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/apply-0.1.2.4.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install validation dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y php-cli php-sqlite3 php-xml php-mbstring php-curl python3-lxml
+
+      - name: Apply v0.1.2.4 source update
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8')
+
+          # Feed availability must be independent from the selected push/staging
+          # transport. feedEnabled remains the global publication switch.
+          path = 'classes/Feed/FeedHandler.php'
+          text = read(path)
+          text = text.replace('use APP\\plugins\\generic\\googleBooks\\classes\\Delivery\\DeliveryConfig;\n', '')
+          old = """        return (bool) $this->plugin->getSetting($contextId, 'feedEnabled')
+            && DeliveryConfig::mode($this->plugin, $contextId) === DeliveryConfig::HTTP_PULL;
+"""
+          new = """        // The authenticated HTTPS feed is an independent delivery surface.
+        // A press may keep Google HTTP/HTTPS pull available while also using
+        // SFTP/FTP/GCS as its primary push/staging transport.
+        return (bool) $this->plugin->getSetting($contextId, 'feedEnabled');
+"""
+          if old not in text:
+              raise SystemExit('Expected FeedHandler feedEnabled gate not found')
+          text = text.replace(old, new)
+          write(path, text)
+
+          # Version metadata.
+          path = 'version.xml'
+          text = read(path)
+          if '<release>0.1.2.3</release>' not in text:
+              raise SystemExit('Expected previous release not found in version.xml')
+          text = text.replace('<release>0.1.2.3</release>', '<release>0.1.2.4</release>')
+          text = text.replace('<date>2026-08-17</date>', '<date>2026-08-24</date>')
+          write(path, text)
+
+          # API User-Agent release marker.
+          path = 'classes/Api/GoogleBooksApiClient.php'
+          text = read(path)
+          text = text.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.4')
+          write(path, text)
+
+          # Dashboard asset cache marker. No asset behavior changes, but keeping
+          # the release marker synchronized avoids mixed-version browser state.
+          path = 'classes/DashboardHandler.php'
+          text = read(path)
+          text = text.replace("$assetVersion = '0.1.2.3';", "$assetVersion = '0.1.2.4';")
+          write(path, text)
+
+          # README current-release documentation.
+          path = 'README.md'
+          text = read(path)
+          marker = '# Google Books Integration for OMP\n\n'
+          if marker not in text:
+              raise SystemExit('README heading not found')
+          release_note = """### 0.1.2.4 concurrent HTTPS feed + push/staging transports
+
+Release 0.1.2.4 fixes a live-production routing defect where the authenticated `/googlebooksfeed/` root and ONIX validation sample remained reachable, but `-full`, `-rights` and `ebooks/<COLLECTION>/` returned 404 whenever the press selected SFTP, FTP or GCS as its primary delivery transport. The HTTPS feed is now controlled only by the existing **Enable delivery/feed** switch and can remain available at the same time as Google-provided SFTP Dropbox or another push/staging transport. HTTP Basic authentication, feed credentials and all existing push transport credentials remain unchanged.
+
+"""
+          if '### 0.1.2.4 concurrent HTTPS feed + push/staging transports' not in text:
+              text = text.replace(marker, marker + release_note, 1)
+          text = text.replace('- Current release: `0.1.2.3`', '- Current release: `0.1.2.4`')
+          text = text.replace('Release 0.1.2.3 supports every server/transport choice', 'Release 0.1.2.4 supports every server/transport choice')
+          text = text.replace('    -> expose via HTTP/HTTPS pull OR push/stage through the selected transport', '    -> expose via HTTP/HTTPS pull and/or push/stage through the selected transport')
+          write(path, text)
+
+          # Changelog.
+          path = 'CHANGELOG.md'
+          text = read(path)
+          entry = """## 0.1.2.4 - 2026-08-24
+
+- Fixes authenticated virtual HTTP/HTTPS feed routes returning `404 Not Found` for ONIX full, ONIX rights and eBook/content directories when the press selected SFTP, FTP, GCS or local export as its primary delivery transport.
+- Decouples public feed availability from the selected push/staging transport: the existing `feedEnabled` switch now controls the authenticated `/googlebooksfeed/` surface independently, allowing HTTPS pull and push delivery to coexist.
+- Preserves HTTP Basic authentication, validation-sample routing, collection-code checks, payload eligibility and all outbound transport credentials without a database migration.
+- Adds regression contracts preventing `FeedHandler` from depending on `DeliveryConfig::mode()` and synchronizes version markers to 0.1.2.4.
+
+"""
+          if not text.startswith('## 0.1.2.4 - 2026-08-24'):
+              text = entry + text
+          write(path, text)
+
+          # Validation report.
+          path = 'VALIDATION.md'
+          text = read(path)
+          text = text.replace('# Google Books Integration for OMP 0.1.2.3 - Validation Report', '# Google Books Integration for OMP 0.1.2.4 - Validation Report', 1)
+          text = text.replace('**Release date:** 2026-08-17', '**Release date:** 2026-08-24', 1)
+          text = text.replace('Release 0.1.2.3 retains the 0.1.2.x transport-neutral delivery layer, encrypted API/transport secrets and dashboard repairs while hardening live SFTP onboarding and connection diagnostics.', 'Release 0.1.2.4 retains the 0.1.2.x transport-neutral delivery layer, encrypted API/transport secrets, dashboard repairs and staged SFTP diagnostics while correcting concurrent HTTPS-feed and push/staging operation.', 1)
+          anchor = '## SFTP endpoint and connection diagnostic hardening\n'
+          section = """## Concurrent authenticated HTTPS feed and push delivery
+
+The authenticated virtual Google Books feed is now independent from the selected primary delivery transport. When `feedEnabled` is true, `/googlebooksfeed/onix/<COLLECTION>-full/`, `/googlebooksfeed/onix/<COLLECTION>-rights/` and `/googlebooksfeed/ebooks/<COLLECTION>/` remain available even when the press selects Google SFTP Dropbox, publisher SFTP, FTP/FTPS, GCS or protected local export. This matches the dashboard/documented operational model in which a publisher can keep a Google-readable HTTPS endpoint while also preparing or pushing the same canonical tree through another transport.
+
+The fix removes the prior `DeliveryConfig::mode() === HTTP_PULL` gate from `FeedHandler`. HTTP Basic authentication, collection-code validation and payload generation are unchanged. No migration is required because the existing `feedEnabled` setting already represents whether publisher delivery/feed exposure is enabled.
+
+"""
+          if section not in text:
+              text = text.replace(anchor, section + anchor, 1)
+          text = text.replace('| Package, locale, security and source contracts | 215/215 |', '| Package, locale, security and source contracts | 217/217 |')
+          text = text.replace('| **Total behavioral/contract assertions** | **638/638** |', '| **Total behavioral/contract assertions** | **640/640** |')
+          write(path, text)
+
+          # Package/regression contracts.
+          path = 'tests/package_check.py'
+          text = read(path)
+          text = text.replace("check(vals.get('lazy-load') == '0', '0.1.2.3 must remain non-lazy to repair legacy enabled settings')", "check(vals.get('lazy-load') == '0', '0.1.2.4 must remain non-lazy to repair legacy enabled settings')")
+          text = text.replace("check(vals.get('release') == '0.1.2.3', 'version.xml release mismatch')", "check(vals.get('release') == '0.1.2.4', 'version.xml release mismatch')")
+          text = text.replace("check(\"GoogleBooksIntegrationForOMP/0.1.2.3\" in api, 'Google Books API User-Agent release mismatch')", "check(\"GoogleBooksIntegrationForOMP/0.1.2.4\" in api, 'Google Books API User-Agent release mismatch')")
+          anchor = "check(\"HTTP_IF_MODIFIED_SINCE\" in feed and '304 Not Modified' in feed, 'conditional feed retrieval support missing')\n"
+          addition = """check(\"return (bool) $this->plugin->getSetting($contextId, 'feedEnabled');\" in feed, 'HTTP feed is not controlled independently by feedEnabled')
+check('DeliveryConfig::mode(' not in feed, 'HTTP feed is incorrectly coupled to the selected push/staging delivery mode')
+"""
+          if addition not in text:
+              if anchor not in text:
+                  raise SystemExit('Feed package-check anchor not found')
+              text = text.replace(anchor, anchor + addition, 1)
+          write(path, text)
+          PY
+
+      - name: Validate complete source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash tests/run_all.sh | tee /tmp/googlebooks-validation.txt
+
+      - name: Refresh validation results
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          out = Path('/tmp/googlebooks-validation.txt').read_text(encoding='utf-8')
+          expected = [
+              ('core behavior/auth/secret/delivery assertions', r'OK (\d+) assertions'),
+              ('repository assertions, including delivery-file state', r'OK (\d+) repository assertions'),
+              ('mapper/DAO/code-24 ISBN assertions', r'OK (\d+) mapper assertions'),
+              ('settings migration assertions', r'OK (\d+) settings migration assertions'),
+              ('SFTP endpoint/diagnostic assertions', r'OK (\d+) SFTP endpoint/diagnostic assertions'),
+              ('package/locale/security/source-contract checks', r'OK (\d+) package checks'),
+              ('OMP 3.5 compatibility smoke assertions', r'OK (\d+) OMP 3\.5 smoke assertions'),
+              ('dashboard operation/persistence/queue smoke assertions', r'OK (\d+) dashboard operation/persistence smoke assertions'),
+          ]
+          lines = ['Google Books Integration for OMP 0.1.2.4 - Final validation', 'Date: 2026-08-24', '']
+          total = 0
+          for label, pattern in expected:
+              m = re.search(pattern, out)
+              if not m:
+                  raise SystemExit(f'Missing validation result: {label}')
+              n = int(m.group(1))
+              total += n
+              lines.append(f'OK {n} {label}')
+          lines += [
+              f'OK {total}/{total} total behavioral/contract assertions',
+              'OK concurrent HTTP/HTTPS feed: full/rights/eBooks feed availability is independent of the selected push/staging transport',
+              'OK HTTP Basic feed authentication and validation routing remain enabled without exposing credentials',
+              'OK SFTP endpoint normalization and staged DNS/TCP/authentication diagnostics retained',
+              'OK Google Books API key and outbound transport secrets remain encrypted at rest',
+              'OK permanent repository CI: .github/workflows/ci.yml runs tests/run_all.sh on pull requests and main pushes',
+              'OK every PHP source file linted with php -l',
+              'OK security regression scan: no plaintext API keys, private keys or Authorization/Bearer credentials in distributed source',
+              '',
+          ]
+          Path('validation-results.txt').write_text('\n'.join(lines), encoding='utf-8')
+          PY
+
+      - name: Security regression scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -RIE 'PAD1UN1|9UPS0KG|publicar\.claec\.org|press\.scientia\.international|AIza[0-9A-Za-z_-]{20,}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY' . \
+            --exclude-dir=.git --exclude='apply-0.1.2.4.yml'
+
+      - name: Commit verified v0.1.2.4 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/apply-0.1.2.4.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Allow concurrent HTTPS feed and push delivery v0.1.2.4'
+          git push origin HEAD:main
