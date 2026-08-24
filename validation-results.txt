@@ -1,19 +1,20 @@
-Google Books Integration for OMP 0.1.2.3 - Final validation
-Date: 2026-08-17
+Google Books Integration for OMP 0.1.2.4 - Final validation
+Date: 2026-08-24
 
 OK 218 core behavior/auth/secret/delivery assertions
 OK 42 repository assertions, including delivery-file state
 OK 24 mapper/DAO/code-24 ISBN assertions
 OK 16 settings migration assertions
 OK 28 SFTP endpoint/diagnostic assertions
-OK 215 package/locale/security/source-contract checks
+OK 221 package/locale/security/source-contract checks
 OK 55 OMP 3.5 compatibility smoke assertions
 OK 40 dashboard operation/persistence/queue smoke assertions
-OK 638/638 total behavioral/contract assertions
-OK SFTP endpoint normalization: bare host, host:port, sftp:// URL, escaped scheme, IPv6, explicit port/path handling and URL-userinfo rejection
-OK non-destructive SFTP connection setup: staged DNS/TCP/timeout/authentication/host-key/remote-access diagnostics with safe IPv4 fallback
-OK HTTP/HTTPS pull diagnostics: external Basic-auth state distinguishes missing Authorization forwarding from credential mismatch
-OK Google Books API key: AES-256-GCM gbapi:v1 envelope, legacy plaintext migration, tamper rejection, no new plaintext persistence
+OK 644/644 total behavioral/contract assertions
+OK concurrent HTTPS pull and push/staging transport availability
+OK real ONIX validation sample: selected published anchor plus other real published OMP products, up to 10 unique ISBN records
+OK validation sample does not fabricate ISBNs or synthetic BookMetadata products
+OK HTTP Basic authentication remains mandatory on Google feed routes
+OK SFTP endpoint normalization and staged DNS/TCP/SSH/authentication diagnostics retained
+OK Google Books API key and outbound transport secrets remain protected at rest
 OK permanent repository CI: .github/workflows/ci.yml runs tests/run_all.sh on pull requests and main pushes
 OK every PHP source file linted with php -l
-OK security regression scan: no plaintext API keys, private keys or Authorization/Bearer credentials in distributed source
