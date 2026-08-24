@@ -23,6 +23,8 @@ use RuntimeException;
 
 final class FeedManifestService
 {
+    private const VALIDATION_TARGET_COUNT = 10;
+
     private OmpBookMapper $mapper;
     private GoogleOnixValidator $validator;
     private GoogleBooksStateRepository $repository;
@@ -96,30 +98,70 @@ final class FeedManifestService
         $contextId = (int) $context->getId();
         $defaultFree = $this->plugin->boolSetting($contextId, 'defaultFreeOfCharge', false);
         $defaultWorldwideRights = $this->plugin->boolSetting($contextId, 'defaultWorldwideRightsForFree', false);
-        // Google's one-time validation sample is metadata-only. It is used
-        // to validate ONIX structure and is not used to activate rights or
-        // sales settings, so a publication may generate this sample before
-        // the live PDF/EPUB and rights feed is ready.
-        $books = $this->mapper->mapSubmission(
-            $submission,
+        $books = [];
+
+        // Google's one-time validation sample is metadata-only. Keep the title
+        // explicitly selected by the manager as the anchor, then supplement it
+        // with other real published OMP products until the sample contains up to
+        // ten unique ISBN records. No fictitious ISBN or synthetic product is
+        // created because a validation file may be ingested accidentally.
+        $appendEligibleProducts = function (object $candidate) use (
+            &$books,
             $context,
             $defaultFree,
             $defaultWorldwideRights,
-            false,
-        );
-        foreach ($books as $book) {
-            if ($this->validator->validateMetadataBook($book) === []) {
-                return (new GoogleOnixBuilder())->build(
-                    [$book],
-                    (string) ($context->getData('publisher') ?: $context->getName($context->getPrimaryLocale())),
-                    (string) $context->getData('contactName'),
-                    (string) $context->getData('contactEmail'),
-                    $this->sentAt((int) $context->getId()),
-                    false,
-                );
+        ): void {
+            foreach ($this->mapper->mapSubmission(
+                $candidate,
+                $context,
+                $defaultFree,
+                $defaultWorldwideRights,
+                false,
+            ) as $book) {
+                if ($this->validator->validateMetadataBook($book) !== []) {
+                    continue;
+                }
+                if (isset($books[$book->isbn13])) {
+                    continue;
+                }
+                $books[$book->isbn13] = $book;
+                if (count($books) >= self::VALIDATION_TARGET_COUNT) {
+                    return;
+                }
+            }
+        };
+
+        $appendEligibleProducts($submission);
+        if ($books === []) {
+            throw new RuntimeException('The selected monograph does not contain an eligible ISBN product with the metadata required for Google ONIX validation.');
+        }
+
+        if (count($books) < self::VALIDATION_TARGET_COUNT) {
+            $published = Repo::submission()
+                ->getCollector()
+                ->filterByContextIds([$contextId])
+                ->filterByStatus([Submission::STATUS_PUBLISHED])
+                ->getMany();
+
+            foreach ($published as $candidate) {
+                if ((int) $candidate->getId() === $submissionId) {
+                    continue;
+                }
+                $appendEligibleProducts($candidate);
+                if (count($books) >= self::VALIDATION_TARGET_COUNT) {
+                    break;
+                }
             }
         }
-        throw new RuntimeException('The selected monograph does not contain an eligible ISBN product with the metadata required for Google ONIX validation.');
+
+        return (new GoogleOnixBuilder())->build(
+            array_values($books),
+            (string) ($context->getData('publisher') ?: $context->getName($context->getPrimaryLocale())),
+            (string) $context->getData('contactName'),
+            (string) $context->getData('contactEmail'),
+            $this->sentAt($contextId),
+            false,
+        );
     }
 
     /**
