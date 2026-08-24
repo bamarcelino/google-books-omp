@@ -12,7 +12,6 @@ declare(strict_types=1);
 namespace APP\plugins\generic\googleBooks\classes\Feed;
 
 use APP\core\Application;
-use APP\plugins\generic\googleBooks\classes\Delivery\DeliveryConfig;
 use APP\plugins\generic\googleBooks\GoogleBooksPlugin;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -238,8 +237,10 @@ final class FeedHandler extends \APP\handler\Handler
     private function feedEnabled(object $context): bool
     {
         $contextId = (int) $context->getId();
-        return (bool) $this->plugin->getSetting($contextId, 'feedEnabled')
-            && DeliveryConfig::mode($this->plugin, $contextId) === DeliveryConfig::HTTP_PULL;
+        // The authenticated HTTPS feed is an independent delivery surface.
+        // A press may keep Google HTTP/HTTPS pull available while also using
+        // SFTP/FTP/GCS as its primary push/staging transport.
+        return (bool) $this->plugin->getSetting($contextId, 'feedEnabled');
     }
 
     /** @param array<int,array{name:string,href:string,size?:?int,modified?:?int}> $entries */
