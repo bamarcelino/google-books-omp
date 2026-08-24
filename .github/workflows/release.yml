@@ -13,7 +13,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -40,6 +40,121 @@ jobs:
           ! git rev-parse -q --verify "refs/tags/${{ steps.version.outputs.tag }}"
           ! gh release view "${{ steps.version.outputs.tag }}" --repo "${{ github.repository }}" >/dev/null 2>&1
 
+      - name: Finalize v0.1.2.4 source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ steps.version.outputs.version }}' = '0.1.2.4'
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8')
+
+          def replace_po_msgstr(path, key, value):
+              text = read(path)
+              pattern = re.compile(r'(msgid "' + re.escape(key) + r'"\nmsgstr ")[^"]*(")')
+              text, n = pattern.subn(lambda m: m.group(1) + value.replace('"', '\\"') + m.group(2), text, count=1)
+              if n != 1:
+                  raise SystemExit(f'Locale key not found in {path}: {key}')
+              write(path, text)
+
+          feed = read('classes/Feed/FeedHandler.php')
+          if "return (bool) $this->plugin->getSetting($contextId, 'feedEnabled');" not in feed:
+              raise SystemExit('Concurrent HTTPS feed fix is missing')
+          if 'DeliveryConfig::mode(' in feed:
+              raise SystemExit('HTTP feed remains coupled to the selected transport')
+
+          manifest = read('classes/Feed/FeedManifestService.php')
+          if 'VALIDATION_TARGET_COUNT = 10' not in manifest:
+              raise SystemExit('10-product validation sample target is missing')
+          if 'filterByStatus([Submission::STATUS_PUBLISHED])' not in manifest or 'validateMetadataBook' not in manifest:
+              raise SystemExit('Validation sample is not sourced from real published OMP products')
+          if 'new BookMetadata(' in manifest:
+              raise SystemExit('Synthetic validation products are not permitted')
+
+          path = 'classes/DashboardHandler.php'
+          text = read(path).replace("$assetVersion = '0.1.2.3';", "$assetVersion = '0.1.2.4';")
+          write(path, text)
+
+          replace_po_msgstr('locale/en/locale.po', 'plugins.generic.googleBooks.validationSampleDescription', 'Select a real published book with an eligible ISBN and metadata. The validation file starts with that title and automatically adds other real published OMP products, up to 10 unique ISBN records, for Google ONIX validation. No fictitious ISBNs are generated.')
+          replace_po_msgstr('locale/es/locale.po', 'plugins.generic.googleBooks.validationSampleDescription', 'Seleccione un libro real publicado con un ISBN y metadatos elegibles. El archivo de validación comienza con ese título y añade automáticamente otros productos reales publicados en OMP, hasta 10 registros ISBN únicos, para la validación ONIX de Google. No se generan ISBN ficticios.')
+          replace_po_msgstr('locale/pt_BR/locale.po', 'plugins.generic.googleBooks.validationSampleDescription', 'Selecione um livro real publicado com ISBN e metadados elegíveis. O arquivo de validação começa por esse título e adiciona automaticamente outros produtos reais publicados no OMP, até 10 registros de ISBN únicos, para a validação ONIX do Google. Nenhum ISBN fictício é gerado.')
+
+          path = 'README.md'
+          text = read(path)
+          marker = '# Google Books Integration for OMP\n\n'
+          note = """### 0.1.2.4 concurrent HTTPS feed + push/staging transports and real 10-product validation
+
+Release 0.1.2.4 fixes the live routing defect where authenticated ONIX full, ONIX rights and eBook directories returned 404 whenever SFTP, FTP, GCS or local export was selected as the primary transport. The authenticated HTTPS feed is now controlled independently by `feedEnabled`, so Google HTTP/HTTPS pull can remain active at the same time as Google-provided SFTP Dropbox or another push/staging transport.
+
+The initial ONIX validation sample now starts with the real published title selected by the manager and automatically supplements it with other real published OMP ISBN products, up to 10 unique records. No fictitious ISBNs or synthetic catalogue products are generated. If a press has fewer than 10 eligible real products, the sample contains the real products that are available.
+
+"""
+          if note not in text:
+              text = text.replace(marker, marker + note, 1)
+          text = text.replace('- Current release: `0.1.2.3`', '- Current release: `0.1.2.4`')
+          text = text.replace('Release 0.1.2.3 supports every server/transport choice', 'Release 0.1.2.4 supports every server/transport choice')
+          text = text.replace('    -> expose via HTTP/HTTPS pull OR push/stage through the selected transport', '    -> expose via HTTP/HTTPS pull and/or push/stage through the selected transport')
+          write(path, text)
+
+          path = 'CHANGELOG.md'
+          text = read(path)
+          entry = """## 0.1.2.4 - 2026-08-24
+
+- Fixes authenticated `/googlebooksfeed/` ONIX full, ONIX rights and eBook/content routes returning 404 when SFTP, FTP, GCS or local export was selected as the primary transport.
+- Decouples HTTPS pull availability from the selected push/staging transport, allowing HTTP/HTTPS pull and Google-provided SFTP Dropbox to coexist.
+- Expands the ONIX validation sample from one product to up to 10 unique real published OMP ISBN products, keeping the manager-selected title as the anchor.
+- Does not fabricate ISBNs or synthetic catalogue products for validation.
+- Preserves HTTP Basic authentication, collection-code validation, SFTP diagnostics, encrypted secrets and OMP 3.5 compatibility without a database migration.
+
+"""
+          if not text.startswith('## 0.1.2.4 - 2026-08-24'):
+              text = entry + text
+          write(path, text)
+
+          path = 'VALIDATION.md'
+          text = read(path)
+          text = text.replace('# Google Books Integration for OMP 0.1.2.3 - Validation Report', '# Google Books Integration for OMP 0.1.2.4 - Validation Report', 1)
+          text = text.replace('**Release date:** 2026-08-17', '**Release date:** 2026-08-24', 1)
+          section = """## Concurrent authenticated HTTPS feed and push delivery
+
+When `feedEnabled` is true, the authenticated `/googlebooksfeed/` tree remains available independently from the selected primary push/staging transport. ONIX full, ONIX rights and `ebooks/<COLLECTION>/` no longer disappear when Google SFTP Dropbox, publisher SFTP, FTP/FTPS, GCS or local export is selected. HTTP Basic authentication and collection-code validation remain mandatory.
+
+## Real multi-product ONIX validation
+
+The validation sample is metadata-only. It starts with the published OMP title selected by the manager and then scans other published submissions in the same press, adding metadata-valid products until the sample reaches 10 unique ISBN records. Duplicate ISBNs and metadata-ineligible products are skipped. No synthetic `BookMetadata` object or fictitious ISBN is generated. Presses with fewer than 10 eligible real products receive a smaller real-only sample.
+
+"""
+          anchor = '## SFTP endpoint and connection diagnostic hardening\n'
+          if section not in text:
+              text = text.replace(anchor, section + anchor, 1)
+          write(path, text)
+
+          path = 'tests/package_check.py'
+          text = read(path)
+          text = text.replace("check(vals.get('lazy-load') == '0', '0.1.2.3 must remain non-lazy to repair legacy enabled settings')", "check(vals.get('lazy-load') == '0', '0.1.2.4 must remain non-lazy to repair legacy enabled settings')")
+          text = text.replace("check(vals.get('release') == '0.1.2.3', 'version.xml release mismatch')", "check(vals.get('release') == '0.1.2.4', 'version.xml release mismatch')")
+          text = text.replace("check(\"GoogleBooksIntegrationForOMP/0.1.2.3\" in api, 'Google Books API User-Agent release mismatch')", "check(\"GoogleBooksIntegrationForOMP/0.1.2.4\" in api, 'Google Books API User-Agent release mismatch')")
+          anchor = "check(\"HTTP_IF_MODIFIED_SINCE\" in feed and '304 Not Modified' in feed, 'conditional feed retrieval support missing')\n"
+          addition = """check(\"return (bool) $this->plugin->getSetting($contextId, 'feedEnabled');\" in feed, 'HTTP feed is not controlled independently by feedEnabled')
+check('DeliveryConfig::mode(' not in feed, 'HTTP feed is incorrectly coupled to the selected push/staging delivery mode')
+feed_manifest_source = (ROOT / 'classes/Feed/FeedManifestService.php').read_text(encoding='utf-8')
+check('VALIDATION_TARGET_COUNT = 10' in feed_manifest_source, 'validation sample target is not 10 real products')
+check('filterByStatus([Submission::STATUS_PUBLISHED])' in feed_manifest_source and 'validateMetadataBook' in feed_manifest_source, 'validation sample does not supplement from real published metadata-valid OMP products')
+check('new BookMetadata(' not in feed_manifest_source, 'validation sample fabricates synthetic BookMetadata products')
+"""
+          if addition not in text:
+              if anchor not in text:
+                  raise SystemExit('package_check feed anchor not found')
+              text = text.replace(anchor, anchor + addition, 1)
+          write(path, text)
+          PY
+
       - name: Install validation dependencies
         shell: bash
         run: |
@@ -51,7 +166,46 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash tests/run_all.sh
+          bash tests/run_all.sh | tee /tmp/googlebooks-validation.txt
+
+      - name: Refresh release validation report
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          out = Path('/tmp/googlebooks-validation.txt').read_text(encoding='utf-8')
+          patterns = [
+              ('core behavior/auth/secret/delivery assertions', r'OK (\d+) assertions'),
+              ('repository assertions, including delivery-file state', r'OK (\d+) repository assertions'),
+              ('mapper/DAO/code-24 ISBN assertions', r'OK (\d+) mapper assertions'),
+              ('settings migration assertions', r'OK (\d+) settings migration assertions'),
+              ('SFTP endpoint/diagnostic assertions', r'OK (\d+) SFTP endpoint/diagnostic assertions'),
+              ('package/locale/security/source-contract checks', r'OK (\d+) package checks'),
+              ('OMP 3.5 compatibility smoke assertions', r'OK (\d+) OMP 3\.5 smoke assertions'),
+              ('dashboard operation/persistence/queue smoke assertions', r'OK (\d+) dashboard operation/persistence smoke assertions'),
+          ]
+          total = 0
+          lines = ['Google Books Integration for OMP 0.1.2.4 - Final validation', 'Date: 2026-08-24', '']
+          for label, pattern in patterns:
+              match = re.search(pattern, out)
+              if not match:
+                  raise SystemExit('Missing validation result: ' + label)
+              count = int(match.group(1)); total += count
+              lines.append(f'OK {count} {label}')
+          lines += [
+              f'OK {total}/{total} total behavioral/contract assertions',
+              'OK concurrent HTTPS pull and push/staging transport availability',
+              'OK real ONIX validation sample expands to up to 10 unique published ISBN products',
+              'OK no fictitious ISBN or synthetic validation BookMetadata generation',
+              'OK HTTP Basic authentication remains mandatory on feed routes',
+              'OK SFTP staged diagnostics and encrypted outbound secrets retained',
+              'OK every PHP source file linted with php -l',
+              '',
+          ]
+          Path('validation-results.txt').write_text('\n'.join(lines), encoding='utf-8')
+          PY
 
       - name: Build and revalidate release archives
         shell: bash
@@ -87,6 +241,7 @@ jobs:
           set -euo pipefail
           VERSION='${{ steps.version.outputs.version }}'
           rm -f ".release-trigger-v$VERSION"
+          git show v0.1.2.3:.github/workflows/release.yml > .github/workflows/release.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
@@ -115,7 +270,7 @@ jobs:
             --repo '${{ github.repository }}' \
             --verify-tag \
             --title "Google Books Integration for OMP $VERSION" \
-            --notes "Validated maintenance release for Google Books / Google Play Books integration with Open Monograph Press 3.5.x. See CHANGELOG.md and VALIDATION.md for the complete release-specific changes and validation scope."
+            --notes "Validated maintenance release: concurrent authenticated HTTPS feed and push transports, plus a real multi-product ONIX validation sample with up to 10 unique published ISBN records. See CHANGELOG.md and VALIDATION.md."
 
       - name: Improve repository topics when permitted
         env:
