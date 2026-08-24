@@ -10,7 +10,7 @@ php tests/repository_smoke.php
 php tests/mapper_smoke.php
 php tests/settings_migration_smoke.php
 php tests/sftp_endpoint_smoke.php
-python3 tests/package_check.py
+python3 tests/package_check_v0124.py
 php tests/omp35_smoke.php
 
 api_capture=$(mktemp)
