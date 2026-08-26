@@ -37,8 +37,8 @@ vals = {child.tag: (child.text or '').strip() for child in version if isinstance
 check(vals.get('application') == 'googleBooks', 'version.xml application mismatch')
 check(vals.get('type') == 'plugins.generic', 'version.xml plugin type mismatch')
 check(vals.get('class') == 'GoogleBooksPlugin', 'version.xml class mismatch')
-check(vals.get('lazy-load') == '0', '0.1.2.3 must remain non-lazy to repair legacy enabled settings')
-check(vals.get('release') == '0.1.2.3', 'version.xml release mismatch')
+check(vals.get('lazy-load') == '0', '0.1.2.5 must remain non-lazy to repair legacy enabled settings')
+check(vals.get('release') == '0.1.2.5', 'version.xml release mismatch')
 
 # OMP plugin-upgrade descriptor contract
 upgrade = etree.parse(str(ROOT / 'upgrade.xml'), parser).getroot()
@@ -156,7 +156,7 @@ check("'q' => 'isbn:' . $isbn" in api, 'Google Books exact ISBN query missing')
 check('IdentifierNormalizer::isbnEquivalents' in api, 'Google Books identifier normalization missing')
 check('ambiguous: true' in api, 'multiple exact Google Volume detection missing')
 check('RequestException' in api and "'HTTP ' . $last->getResponse()->getStatusCode()" in api, 'Google API error sanitization contract missing')
-check("GoogleBooksIntegrationForOMP/0.1.2.3" in api, 'Google Books API User-Agent release mismatch')
+check("GoogleBooksIntegrationForOMP/0.1.2.5" in api, 'Google Books API User-Agent release mismatch')
 
 sftp_endpoint_source = (ROOT / 'classes/Delivery/SftpEndpoint.php').read_text(encoding='utf-8')
 sftp_source = (ROOT / 'classes/Delivery/SftpTransport.php').read_text(encoding='utf-8')
@@ -232,6 +232,7 @@ manifest = (ROOT / 'classes/Feed/FeedManifestService.php').read_text(encoding='u
 check("new DateTimeImmutable('@' . $revision)" in manifest, 'ONIX SentDateTime is not tied to feed revision')
 check("new DateTimeImmutable('now'" not in manifest, 'feed XML is not deterministic within one revision')
 check('validateMetadataBook($book)' in manifest and 'validateRightsBook($book)' in manifest, 'validation sample and live rights feed validation are not separated')
+check("str_ends_with($trimmedXml, '</ONIXMessage>')" in validator_source and "substr_count($xml, '<Product>')" in validator_source, 'truncated ONIX completeness guards missing')
 check('mapSubmission(' in manifest and 'false,' in manifest, 'initial ONIX validation sample does not permit metadata-only mapping')
 
 plugin = (ROOT / 'GoogleBooksPlugin.php').read_text(encoding='utf-8')
@@ -268,7 +269,7 @@ check(all(mode in delivery_config for mode in ["HTTP_PULL = 'http_pull'", "GOOGL
 check("aes-256-gcm" in secret_store and "general', 'app_key'" in secret_store and 'Authorization' not in secret_store, 'recoverable secret encryption contract is incomplete')
 check('encryptApiKey' in secret_store and 'decryptApiKey' in secret_store and "API_PREFIX = 'gbapi:v1:'" in secret_store, 'Google Books API-key encrypted envelope is missing')
 check('getGoogleApiKey' in plugin_source and 'setGoogleApiKey' in plugin_source and "'googleApiKeyEncrypted'" in plugin_source, 'plugin API-key encrypted storage accessors are missing')
-check('GoogleBooksIntegrationForOMP/0.1.2.3' in (ROOT / 'classes/Api/GoogleBooksApiClient.php').read_text(encoding='utf-8'), 'Google Books API User-Agent does not match the current plugin release')
+check('GoogleBooksIntegrationForOMP/0.1.2.5' in (ROOT / 'classes/Api/GoogleBooksApiClient.php').read_text(encoding='utf-8'), 'Google Books API User-Agent does not match the current plugin release')
 check("updateSetting($contextId, 'googleApiKey', $newApiKey" not in handler, 'dashboard still writes a new Google Books API key in plaintext')
 check('google_books_delivery_files' in delivery_migration and "path_hash" in delivery_migration and "transport_key" in delivery_migration, 'incremental delivery state migration missing')
 check("DeliveryConfig::GOOGLE_SFTP" in delivery_manager and "DeliveryConfig::PUBLISHER_SFTP" in delivery_manager and "DeliveryConfig::PUBLISHER_FTP" in delivery_manager and "DeliveryConfig::GCS" in delivery_manager and "DeliveryConfig::LOCAL_EXPORT" in delivery_manager, 'delivery manager does not route every supported push/staging transport')
@@ -288,10 +289,10 @@ check("getSetting($this->contextId, 'googleApiKey')" not in (ROOT / 'classes/Job
 
 builder = (ROOT / 'classes/Onix/GoogleOnixBuilder.php').read_text(encoding='utf-8')
 check('$this->buildTerritory($market, 5)' in builder, 'paid Price territory is missing from Google ONIX profile')
-check('contributorRoles($contributor)' in builder, 'multiple ONIX contributor-role support missing')
+check('contributorRole($contributor)' in builder and "foreach ($this->contributorRoles($contributor) as $role)" not in builder, 'Google single ContributorRole serialization contract missing')
 check("CollectionIDType', '01'" in builder and "IDTypeName', 'Publisher Series ID'" in builder, 'proprietary ONIX collection identifier fallback missing')
-check("Google Books requires at least one A01 contributor role" in (ROOT / 'classes/Onix/GoogleOnixValidator.php').read_text(encoding='utf-8'), 'Google A01 contributor requirement missing')
-check("$contributors[0]['roles'][] = 'A01'" in mapper, 'editor-only OMP compatibility role mapping missing')
+check('count($roles) !== 1' in (ROOT / 'classes/Onix/GoogleOnixValidator.php').read_text(encoding='utf-8'), 'Google single ContributorRole validation contract missing')
+check("$contributors[0]['roles'][] = 'A01'" not in mapper, 'mapper still injects a synthetic A01 compatibility role')
 
 job_files = [f for f in (ROOT / 'classes/Jobs').glob('*.php') if f.name not in {'CatalogVerifyJob.php', 'GoogleBooksJob.php'}]
 check(bool(job_files) and all('getEnabled($this->contextId)' in f.read_text(encoding='utf-8') for f in job_files), 'active queued jobs do not stop cleanly when the plugin is disabled')

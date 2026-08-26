@@ -1,3 +1,13 @@
+## 0.1.2.5 - 2026-08-26
+
+- Implements Google Play Books validation feedback requiring exactly one `ContributorRole` per `Contributor` composite.
+- Removes the synthetic `A01` compatibility role previously appended to editor-only (`B01`) contributors; OMP's primary contributor role is now preserved without alteration.
+- Defensively collapses legacy multi-role contributor data to one primary role when serializing ONIX.
+- Adds explicit incomplete/truncated XML guards for a closing `ONIXMessage` and balanced `Product` composites before delivery.
+- Hardens validation-file downloads against stray buffered HTTP output while preserving exact `Content-Length` delivery.
+- Keeps pricing publisher-neutral and OMP-derived: free products use `UnpricedItemType 01`; paid OMP markets generate `Price` composites.
+- Bumps the plugin and API User-Agent to 0.1.2.5 without a database migration.
+
 ## 0.1.2.3 - 2026-08-17
 
 - Normalizes Google/publisher SFTP server input from bare host, host:port, complete `sftp://` URL, bracketed IPv6, and documentation-escaped `sftp\://` forms; URL userinfo is rejected so credentials cannot be accidentally persisted in the host field.

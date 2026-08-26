@@ -166,3 +166,12 @@ The final extracted-archive results are recorded in `validation-results.txt` and
 Local validation proves the plugin's source contracts and simulated OMP/PKP integration, not a specific publisher's PHP extensions, outbound firewall, SFTP/FTP/GCS credentials, queue worker, remote filesystem permissions, or Google Partner Center configuration. Each selected remote transport must be tested from the production OMP installation.
 
 Google must still perform its one-time publisher onboarding and ingestion processing. The plugin intentionally does not fabricate missing catalogue records merely to satisfy an onboarding sample count.
+
+## Google Play Books contributor-role and XML-completeness corrections
+
+Following direct Google Play Books validation feedback, every generated `Contributor` composite now contains exactly one primary `ContributorRole`. The mapper no longer adds a synthetic `A01` role to editor-only records and the builder defensively serializes only the primary role if legacy data still contains multiple role values. The runtime validator rejects multi-role contributor composites under the Google profile.
+
+Generated ONIX is also checked explicitly for a closing `</ONIXMessage>` and balanced `Product` opening/closing tags before it can be downloaded or delivered. The manager download path refuses to send XML after stray output has already started and retains an exact `Content-Length` header.
+
+Pricing logic is unchanged and remains sourced from OMP: free titles emit `UnpricedItemType 01`, while positive market prices emit a `Price` composite with amount and currency. No publisher-specific price is hard-coded.
+

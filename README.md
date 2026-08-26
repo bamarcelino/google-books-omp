@@ -1,5 +1,11 @@
 # Google Books Integration for OMP
 
+### 0.1.2.5 Google Play Books ONIX profile corrections
+
+Release 0.1.2.5 incorporates direct Google Play Books validation feedback. Each `<Contributor>` now serializes exactly one primary `<ContributorRole>` derived from OMP; the previous editor-only compatibility fallback that appended `A01` to a `B01` contributor has been removed. Legacy multi-role data is defensively collapsed to the primary role during serialization.
+
+Validation/download hardening now rejects incomplete XML before delivery, checks balanced `<Product>` composites and a closing `</ONIXMessage>`, and prevents manager downloads after stray HTTP output has already started. Pricing behavior remains publisher-neutral and OMP-derived: genuinely free titles retain `<UnpricedItemType>01</UnpricedItemType>`, while positive OMP market prices continue to generate `<Price>` composites.
+
 
 ### 0.1.2.3 SFTP endpoint hardening + staged transport diagnostics
 

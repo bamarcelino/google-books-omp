@@ -1,15 +1,15 @@
-Google Books Integration for OMP 0.1.2.4 - Final validation
-Date: 2026-08-24
+Google Books Integration for OMP 0.1.2.5 - Final validation
+Date: 2026-08-26
 
-OK 218 core behavior/auth/secret/delivery assertions
+OK 219 core behavior/auth/secret/delivery assertions
 OK 42 repository assertions, including delivery-file state
 OK 24 mapper/DAO/code-24 ISBN assertions
 OK 16 settings migration assertions
 OK 28 SFTP endpoint/diagnostic assertions
-OK 221 package/locale/security/source-contract checks
+OK 222 package/locale/security/source-contract checks
 OK 55 OMP 3.5 compatibility smoke assertions
 OK 40 dashboard operation/persistence/queue smoke assertions
-OK 644/644 total behavioral/contract assertions
+OK 646/646 total behavioral/contract assertions
 OK concurrent HTTPS pull and push/staging transport availability
 OK real ONIX validation sample: selected published anchor plus other real published OMP products, up to 10 unique ISBN records
 OK validation sample does not fabricate ISBNs or synthetic BookMetadata products
@@ -18,3 +18,6 @@ OK SFTP endpoint normalization and staged DNS/TCP/SSH/authentication diagnostics
 OK Google Books API key and outbound transport secrets remain protected at rest
 OK permanent repository CI: .github/workflows/ci.yml runs tests/run_all.sh on pull requests and main pushes
 OK every PHP source file linted with php -l
+OK Google Play Books contributor profile: exactly one primary ContributorRole per Contributor composite
+OK editor-only OMP records preserve B01/B21/etc. without synthetic A01 injection
+OK incomplete ONIX guard: missing closing ONIXMessage or unbalanced Product composites are rejected

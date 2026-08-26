@@ -114,7 +114,8 @@ final class GoogleOnixBuilder
         foreach ($book->contributors as $contributor) {
             $xml .= "      <Contributor>\n";
             $xml .= Xml::element('SequenceNumber', (string) $sequence++, 4);
-            foreach ($this->contributorRoles($contributor) as $role) {
+            $role = $this->contributorRole($contributor);
+            if ($role !== null) {
                 $xml .= Xml::element('ContributorRole', $role, 4);
             }
             $orcid = !empty($contributor['orcid'])
@@ -184,21 +185,25 @@ final class GoogleOnixBuilder
         return $identifier;
     }
 
-    /** @param array<string,mixed> $contributor @return string[] */
-    private function contributorRoles(array $contributor): array
+    /** @param array<string,mixed> $contributor */
+    private function contributorRole(array $contributor): ?string
     {
-        $rawRoles = $contributor['roles'] ?? [$contributor['role'] ?? ''];
+        $primary = strtoupper(trim((string) ($contributor['role'] ?? '')));
+        if ($primary !== '') {
+            return $primary;
+        }
+
+        $rawRoles = $contributor['roles'] ?? [];
         if (!is_array($rawRoles)) {
             $rawRoles = [$rawRoles];
         }
-        $roles = [];
         foreach ($rawRoles as $role) {
             $role = strtoupper(trim((string) $role));
-            if ($role !== '' && !in_array($role, $roles, true)) {
-                $roles[] = $role;
+            if ($role !== '') {
+                return $role;
             }
         }
-        return $roles;
+        return null;
     }
 
     private function buildSalesRights(BookMetadata $book): string
