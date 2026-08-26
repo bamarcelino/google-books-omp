@@ -277,21 +277,9 @@ final class OmpBookMapper
             ];
         }
 
-        // Google's ONIX ingestion profile requires at least one A01 role for
-        // every book. OMP may legitimately model an edited volume with only
-        // volume editors. Preserve the editorial role and add A01 as a second
-        // compatibility role to the first named contributor in that case.
-        $hasPrimaryAuthorRole = false;
-        foreach ($contributors as $contributor) {
-            if (in_array('A01', $contributor['roles'], true)) {
-                $hasPrimaryAuthorRole = true;
-                break;
-            }
-        }
-        if (!$hasPrimaryAuthorRole && $contributors !== []) {
-            $contributors[0]['roles'][] = 'A01';
-        }
-
+        // Google Play Books' ONIX ingestion profile requires one primary
+        // ContributorRole per Contributor composite. Preserve the role recorded
+        // by OMP and do not add a synthetic A01 compatibility role to editors.
         return $contributors;
     }
 

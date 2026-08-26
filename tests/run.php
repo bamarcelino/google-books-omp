@@ -274,12 +274,12 @@ check(in_array('ISBN-10 does not correspond to the ISBN-13 product identifier.',
 
 $editedVolume = clone $book;
 $editedVolume->contributors = [['role' => 'B01', 'roles' => ['B01'], 'name' => 'Volume Editor', 'orcid' => null]];
-check(in_array('Google Books requires at least one A01 contributor role for every book.', $validator->validateBook($editedVolume), true), 'Google A01 requirement was not enforced');
-$editedVolumeCompatible = clone $book;
-$editedVolumeCompatible->contributors = [['role' => 'B01', 'roles' => ['B01', 'A01'], 'name' => 'Volume Editor', 'orcid' => null]];
-check($validator->validateBook($editedVolumeCompatible) === [], 'Validator rejected an editor role paired with Google-required A01');
-$editedXml = $builder->build([$editedVolumeCompatible], 'Test Publisher');
-check(substr_count($editedXml, '<ContributorRole>B01</ContributorRole>') === 1 && substr_count($editedXml, '<ContributorRole>A01</ContributorRole>') === 1, 'Builder did not preserve multiple contributor roles');
+check($validator->validateBook($editedVolume) === [], 'Validator rejected an editor-only book with one primary B01 role');
+$editedVolumeLegacyMultiRole = clone $book;
+$editedVolumeLegacyMultiRole->contributors = [['role' => 'B01', 'roles' => ['B01', 'A01'], 'name' => 'Volume Editor', 'orcid' => null]];
+check(in_array('Every contributor must contain exactly one three-character ONIX ContributorRole for Google Play Books.', $validator->validateBook($editedVolumeLegacyMultiRole), true), 'Google single ContributorRole profile was not enforced');
+$editedXml = $builder->build([$editedVolumeLegacyMultiRole], 'Test Publisher');
+check(substr_count($editedXml, '<ContributorRole>B01</ContributorRole>') === 1 && !str_contains($editedXml, '<ContributorRole>A01</ContributorRole>'), 'Builder did not collapse legacy multi-role data to the primary role');
 $badContributorRole = clone $book;
 $badContributorRole->contributors = [['role' => 'EDITOR', 'roles' => ['EDITOR'], 'name' => 'Volume Editor', 'orcid' => null]];
 check(in_array('Every contributor role must be a three-character ONIX ContributorRole.', $validator->validateBook($badContributorRole), true), 'Malformed ONIX ContributorRole was accepted');
@@ -339,6 +339,8 @@ $emptyAsset->assets[0]['size'] = 0;
 check(in_array('Every feed asset must have a positive file size.', $validator->validateBook($emptyAsset), true), 'Zero-byte feed asset was accepted');
 
 check($validator->validateXml($xml) === [], 'ONIX validator rejected generated XML');
+$truncatedXml = substr($xml, 0, strrpos($xml, '</Product>'));
+check(in_array('Generated ONIX is incomplete: closing ONIXMessage tag is missing.', $validator->validateXml($truncatedXml), true), 'Truncated ONIX document was not rejected before delivery');
 $validatorSource = file_get_contents(dirname(__DIR__) . '/classes/Onix/GoogleOnixValidator.php');
 check(str_contains($validatorSource, 'schemaValidate') && str_contains($validatorSource, 'ONIX_BookProduct_3.0_reference.xsd'), 'Runtime validation does not use the ONIX XSD bundled with OMP when available');
 check(str_contains($xml, '<RecordReference>9780306406157</RecordReference>'), 'ONIX RecordReference is not stable ISBN-13');
@@ -362,7 +364,7 @@ $entityBook->title = $cleaned;
 $entityXml = $builder->build([$entityBook], 'Publisher & Society');
 check(str_contains($entityXml, '<TitleText>Research &amp; Society Second line</TitleText>'), 'ONIX XML did not escape cleaned ampersands exactly once');
 check(!str_contains($entityXml, '&amp;amp;'), 'ONIX XML double-escaped an HTML entity');
-check(str_contains(file_get_contents(dirname(__DIR__) . '/classes/Sync/OmpBookMapper.php'), "\$contributors[0]['roles'][] = 'A01'"), 'OMP mapper does not add Google-required A01 to editor-only volumes');
+check(!str_contains(file_get_contents(dirname(__DIR__) . '/classes/Sync/OmpBookMapper.php'), "\$contributors[0]['roles'][] = 'A01'"), 'OMP mapper still injects a synthetic A01 role into editor-only volumes');
 
 $localizedData = new ReflectionMethod($mapper, 'localizedData');
 $localizedObject = new class {

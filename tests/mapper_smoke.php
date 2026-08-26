@@ -597,7 +597,7 @@ namespace {
     mapperCheck($book !== null && $book->freeOfCharge === true, 'mapper did not infer open access from OMP proof pricing');
     mapperCheck($book !== null && $book->prices === [], 'open-access product retained paid prices');
     mapperCheck($book !== null && ($book->salesRights[0]['regionsIncluded'] ?? []) === ['WORLD'], 'default worldwide rights were not added for a free title');
-    mapperCheck($book !== null && ($book->contributors[0]['roles'] ?? []) === ['B01', 'A01'], 'edited-volume contributor did not retain B01 and receive required A01 compatibility role');
+    mapperCheck($book !== null && ($book->contributors[0]['roles'] ?? []) === ['B01'], 'edited-volume contributor did not preserve a single OMP-derived B01 role');
     mapperCheck($book !== null && ($book->contributors[0]['orcid'] ?? null) === 'https://orcid.org/0000-0002-1825-0097', 'verified ORCID was not preserved');
 
     $extensions = $book ? array_column($book->assets, 'extension') : [];

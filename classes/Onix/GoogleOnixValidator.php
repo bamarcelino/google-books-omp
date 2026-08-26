@@ -42,29 +42,22 @@ final class GoogleOnixValidator
         if ($book->contributors === []) {
             $errors[] = 'At least one contributor is required.';
         }
-        $hasPrimaryAuthorRole = false;
         foreach ($book->contributors as $contributor) {
             if (trim((string) ($contributor['name'] ?? '')) === '') {
                 $errors[] = 'Contributor names cannot be empty.';
             }
             $roles = $this->contributorRoles($contributor);
-            if ($roles === []) {
-                $errors[] = 'Every contributor must contain at least one three-character ONIX ContributorRole.';
+            if (count($roles) !== 1) {
+                $errors[] = 'Every contributor must contain exactly one three-character ONIX ContributorRole for Google Play Books.';
             }
             foreach ($roles as $role) {
                 if (!preg_match('/^[A-Z][0-9]{2}$/', $role)) {
                     $errors[] = 'Every contributor role must be a three-character ONIX ContributorRole.';
                 }
-                if ($role === 'A01') {
-                    $hasPrimaryAuthorRole = true;
-                }
             }
             if (!empty($contributor['orcid']) && IdentifierNormalizer::normalizeOrcid((string) $contributor['orcid']) === null) {
                 $errors[] = 'Contributor ORCID is invalid.';
             }
-        }
-        if ($book->contributors !== [] && !$hasPrimaryAuthorRole) {
-            $errors[] = 'Google Books requires at least one A01 contributor role for every book.';
         }
 
         if ($book->seriesIssn !== null && IdentifierNormalizer::normalizeIssn($book->seriesIssn) === null) {
@@ -273,6 +266,13 @@ final class GoogleOnixValidator
                 $errors[] = 'Missing required ONIX element: ' . trim($required, '<>');
             }
         }
+        $trimmedXml = trim($xml);
+        if (!str_ends_with($trimmedXml, '</ONIXMessage>')) {
+            $errors[] = 'Generated ONIX is incomplete: closing ONIXMessage tag is missing.';
+        }
+        if (substr_count($xml, '<Product>') !== substr_count($xml, '</Product>')) {
+            $errors[] = 'Generated ONIX is incomplete: Product opening/closing tags do not match.';
+        }
         if (preg_match('/<([A-Za-z][A-Za-z0-9]*)(?:\s[^>]*)?><\/\1>/', $xml)) {
             $errors[] = 'Generated ONIX contains an empty element.';
         }
@@ -285,6 +285,14 @@ final class GoogleOnixValidator
                         $errors[] = trim($error->message);
                     }
                 } else {
+                    $xpath = new \DOMXPath($dom);
+                    $xpath->registerNamespace('onix', 'http://ns.editeur.org/onix/3.0/reference');
+                    foreach ($xpath->query('//onix:Contributor') ?: [] as $contributorNode) {
+                        if ($xpath->query('./onix:ContributorRole', $contributorNode)->length !== 1) {
+                            $errors[] = 'Google Play Books profile requires exactly one ContributorRole in each Contributor composite.';
+                            break;
+                        }
+                    }
                     $xsdPath = $this->ompOnixSchemaPath();
                     if ($xsdPath !== null && !$dom->schemaValidate($xsdPath)) {
                         foreach (libxml_get_errors() as $error) {

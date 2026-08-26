@@ -455,6 +455,12 @@ final class DashboardHandler extends \APP\handler\Handler
             if ($errors !== []) {
                 throw new RuntimeException(implode(' ', $errors));
             }
+            if (headers_sent()) {
+                throw new RuntimeException('Cannot send a complete ONIX validation file after HTTP output has already started.');
+            }
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
             header('Content-Type: application/xml; charset=UTF-8');
             header('Content-Disposition: attachment; filename="googlebooksvalidation' . $submissionId . '.xml"');
             header('Content-Length: ' . strlen($xml));
