@@ -17,6 +17,8 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 final class FeedHandler extends \APP\handler\Handler
 {
+    private const VALIDATION_FILENAME = 'googlebooksvalidation.xml';
+
     public function __construct(private GoogleBooksPlugin $plugin)
     {
         parent::__construct();
@@ -65,17 +67,23 @@ final class FeedHandler extends \APP\handler\Handler
             if (!$submissionId) {
                 throw new NotFoundHttpException('No validation monograph selected.');
             }
-            $filename = 'googlebooksvalidation' . $submissionId . '.xml';
+
             if (count($args) === 1) {
                 $xml = $service->buildValidationOnix($context, $submissionId);
                 $this->directory([[
-                    'name' => $filename,
-                    'href' => $this->feedUrl($request, 'onix', ['validate', $filename]),
+                    'name' => self::VALIDATION_FILENAME,
+                    'href' => $this->feedUrl($request, 'onix', ['validate', self::VALIDATION_FILENAME]),
                     'size' => strlen($xml),
                     'modified' => (int) $this->plugin->getFeedRevision((int) $context->getId()),
                 ]]);
             }
-            if (count($args) === 2 && hash_equals($filename, $args[1])) {
+
+            // v0.1.2.6 exposes one permanent canonical validation URL. Legacy
+            // googlebooksvalidation<submissionId>.xml links remain accepted so
+            // a URL already supplied to Google continues to resolve even when
+            // the manager changes the anchor monograph used for the 10-record
+            // validation sample.
+            if (count($args) === 2 && $this->isValidationFilename($args[1])) {
                 $xml = $service->buildValidationOnix($context, $submissionId);
                 $this->xml($xml, (int) $this->plugin->getFeedRevision((int) $context->getId()));
             }
@@ -243,6 +251,14 @@ final class FeedHandler extends \APP\handler\Handler
         return (bool) $this->plugin->getSetting($contextId, 'feedEnabled');
     }
 
+    private function isValidationFilename(string $filename): bool
+    {
+        if (hash_equals(self::VALIDATION_FILENAME, $filename)) {
+            return true;
+        }
+        return (bool) preg_match('/^googlebooksvalidation[0-9]+\.xml$/', $filename);
+    }
+
     /** @param array<int,array{name:string,href:string,size?:?int,modified?:?int}> $entries */
     private function directory(array $entries): never
     {
@@ -264,11 +280,43 @@ final class FeedHandler extends \APP\handler\Handler
 
     private function xml(string $xml, int $modified): never
     {
+        // Guard the final HTTP boundary independently from the manifest service.
+        // If an unexpected caller ever reaches this method with partial XML,
+        // fail before headers/body are emitted instead of giving Google a
+        // syntactically truncated catalogue.
+        if (
+            !str_ends_with(trim($xml), '</ONIXMessage>') ||
+            substr_count($xml, '<Product>') !== substr_count($xml, '</Product>')
+        ) {
+            throw new \RuntimeException('Refusing to deliver incomplete Google Books ONIX XML.');
+        }
+
         $this->notModified($modified);
+
+        // Remove any buffered OMP/theme/debug output before the XML body. A
+        // warning, BOM or previous template fragment would invalidate ONIX and
+        // may also make Content-Length disagree with the actual response.
+        while (ob_get_level() > 0) {
+            if (!@ob_end_clean()) {
+                break;
+            }
+        }
+
+        // Prevent PHP-level compression from rewriting a response whose exact
+        // byte length is advertised below. `no-transform` also asks proxies and
+        // CDNs not to alter this authenticated machine-to-machine payload.
+        if (function_exists('ini_set')) {
+            @ini_set('zlib.output_compression', '0');
+        }
+        if (function_exists('apache_setenv')) {
+            @apache_setenv('no-gzip', '1');
+        }
+
         header('Content-Type: application/xml; charset=UTF-8');
         header('Content-Length: ' . strlen($xml));
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $modified) . ' GMT');
-        header('Cache-Control: private, no-cache, must-revalidate');
+        header('Cache-Control: private, no-cache, no-store, must-revalidate, no-transform');
+        header('X-Content-Type-Options: nosniff');
         header('X-Robots-Tag: noindex, nofollow, noarchive');
         echo $xml;
         exit;
