@@ -32,6 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .github/apply_v0125.py
+          python3 .github/fix_v0125_post.py
 
       - name: Run complete test suite
         shell: bash
@@ -43,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f .github/workflows/apply-v0.1.2.5.yml .github/apply_v0125.py
+          rm -f .github/workflows/apply-v0.1.2.5.yml .github/apply_v0125.py .github/fix_v0125_post.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
