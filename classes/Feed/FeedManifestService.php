@@ -78,13 +78,19 @@ final class FeedManifestService
     public function buildOnix(object $context, string $collectionCode, bool $includeSupplyDetail): string
     {
         $books = $this->books($context, $collectionCode, $includeSupplyDetail);
-        return (new GoogleOnixBuilder())->build(
+        $xml = (new GoogleOnixBuilder())->build(
             $books,
             (string) ($context->getData('publisher') ?: $context->getName($context->getPrimaryLocale())),
             (string) $context->getData('contactName'),
             (string) $context->getData('contactEmail'),
             $this->sentAt((int) $context->getId()),
             $includeSupplyDetail,
+        );
+
+        return $this->assertDeliverableXml(
+            $xml,
+            $includeSupplyDetail ? 'rights' : 'bibliographic',
+            count($books),
         );
     }
 
@@ -133,7 +139,7 @@ final class FeedManifestService
 
         $appendEligibleProducts($submission);
         if ($books === []) {
-            throw new RuntimeException('The selected monograph does not contain an eligible ISBN product with the metadata required for Google ONIX validation.');
+            throw new RuntimeException('The selected validation monograph does not contain an eligible ISBN product with the metadata required for Google ONIX validation.');
         }
 
         if (count($books) < self::VALIDATION_TARGET_COUNT) {
@@ -154,7 +160,7 @@ final class FeedManifestService
             }
         }
 
-        return (new GoogleOnixBuilder())->build(
+        $xml = (new GoogleOnixBuilder())->build(
             array_values($books),
             (string) ($context->getData('publisher') ?: $context->getName($context->getPrimaryLocale())),
             (string) $context->getData('contactName'),
@@ -162,6 +168,8 @@ final class FeedManifestService
             $this->sentAt($contextId),
             false,
         );
+
+        return $this->assertDeliverableXml($xml, 'validation', count($books));
     }
 
     /**
@@ -189,6 +197,40 @@ final class FeedManifestService
         }
         ksort($assets);
         return $assets;
+    }
+
+    /**
+     * Refuse to expose a partially generated or structurally invalid ONIX
+     * document. The full XML is built in memory first, then parsed and, when
+     * OMP's ONIX schema is available, XSD-validated before FeedHandler writes
+     * any HTTP response bytes. This is deliberately done for large catalogues
+     * too, so a late product-generation error can never leave Google with a
+     * syntactically truncated feed that looks like a valid partial catalogue.
+     */
+    private function assertDeliverableXml(string $xml, string $profile, int $expectedProducts): string
+    {
+        $errors = $this->validator->validateXml($xml);
+        $openProducts = substr_count($xml, '<Product>');
+        $closedProducts = substr_count($xml, '</Product>');
+
+        if ($openProducts !== $expectedProducts || $closedProducts !== $expectedProducts) {
+            $errors[] = sprintf(
+                'Generated %s ONIX product count mismatch: expected %d, opened %d, closed %d.',
+                $profile,
+                $expectedProducts,
+                $openProducts,
+                $closedProducts,
+            );
+        }
+
+        if ($errors !== []) {
+            throw new RuntimeException(
+                'Google Books ' . $profile . ' ONIX failed pre-delivery validation: ' .
+                implode(' | ', array_slice(array_values(array_unique($errors)), 0, 10))
+            );
+        }
+
+        return $xml;
     }
 
     /**
