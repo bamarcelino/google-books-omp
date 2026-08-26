@@ -1,0 +1,414 @@
+name: Apply Google ONIX corrections v0.1.2.5
+
+on:
+  push:
+    branches:
+      - fix-google-onix-v0.1.2.5
+    paths:
+      - '.github/workflows/apply-v0.1.2.5.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install validation dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y php-cli php-sqlite3 php-xml php-mbstring php-curl python3-lxml
+
+      - name: Apply Google Play Books ONIX profile corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8')
+
+          def replace_once(path, old, new, label):
+              text = read(path)
+              if old not in text:
+                  raise SystemExit(f'Missing expected source for {label}: {path}')
+              text = text.replace(old, new, 1)
+              write(path, text)
+
+          # 1. Preserve exactly one OMP-derived primary contributor role.
+          path = 'classes/Sync/OmpBookMapper.php'
+          old = '''        // Google's ONIX ingestion profile requires at least one A01 role for
+        // every book. OMP may legitimately model an edited volume with only
+        // volume editors. Preserve the editorial role and add A01 as a second
+        // compatibility role to the first named contributor in that case.
+        $hasPrimaryAuthorRole = false;
+        foreach ($contributors as $contributor) {
+            if (in_array('A01', $contributor['roles'], true)) {
+                $hasPrimaryAuthorRole = true;
+                break;
+            }
+        }
+        if (!$hasPrimaryAuthorRole && $contributors !== []) {
+            $contributors[0]['roles'][] = 'A01';
+        }
+
+        return $contributors;
+'''
+          new = '''        // Google Play Books' ONIX ingestion profile requires one primary
+        // ContributorRole per Contributor composite. Preserve the role recorded
+        // by OMP and do not add a synthetic A01 compatibility role to editors.
+        return $contributors;
+'''
+          replace_once(path, old, new, 'single contributor role mapping')
+
+          # 2. Builder emits one role defensively, even for legacy multi-role data.
+          path = 'classes/Onix/GoogleOnixBuilder.php'
+          replace_once(
+              path,
+              '''            foreach ($this->contributorRoles($contributor) as $role) {
+                $xml .= Xml::element('ContributorRole', $role, 4);
+            }
+''',
+              '''            $role = $this->contributorRole($contributor);
+            if ($role !== null) {
+                $xml .= Xml::element('ContributorRole', $role, 4);
+            }
+''',
+              'single ContributorRole serialization',
+          )
+          text = read(path)
+          pattern = re.compile(r'''    /\*\* @param array<string,mixed> \$contributor @return string\[\] \*/\n    private function contributorRoles\(array \$contributor\): array\n    \{.*?\n    \}\n''', re.S)
+          replacement = '''    /** @param array<string,mixed> $contributor */
+    private function contributorRole(array $contributor): ?string
+    {
+        $primary = strtoupper(trim((string) ($contributor['role'] ?? '')));
+        if ($primary !== '') {
+            return $primary;
+        }
+
+        $rawRoles = $contributor['roles'] ?? [];
+        if (!is_array($rawRoles)) {
+            $rawRoles = [$rawRoles];
+        }
+        foreach ($rawRoles as $role) {
+            $role = strtoupper(trim((string) $role));
+            if ($role !== '') {
+                return $role;
+            }
+        }
+        return null;
+    }
+'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit('Unable to replace contributorRoles helper')
+          write(path, text)
+
+          # 3. Google-specific validator: exactly one role, no artificial A01 requirement.
+          path = 'classes/Onix/GoogleOnixValidator.php'
+          text = read(path)
+          old = '''        $hasPrimaryAuthorRole = false;
+        foreach ($book->contributors as $contributor) {
+            if (trim((string) ($contributor['name'] ?? '')) === '') {
+                $errors[] = 'Contributor names cannot be empty.';
+            }
+            $roles = $this->contributorRoles($contributor);
+            if ($roles === []) {
+                $errors[] = 'Every contributor must contain at least one three-character ONIX ContributorRole.';
+            }
+            foreach ($roles as $role) {
+                if (!preg_match('/^[A-Z][0-9]{2}$/', $role)) {
+                    $errors[] = 'Every contributor role must be a three-character ONIX ContributorRole.';
+                }
+                if ($role === 'A01') {
+                    $hasPrimaryAuthorRole = true;
+                }
+            }
+            if (!empty($contributor['orcid']) && IdentifierNormalizer::normalizeOrcid((string) $contributor['orcid']) === null) {
+                $errors[] = 'Contributor ORCID is invalid.';
+            }
+        }
+        if ($book->contributors !== [] && !$hasPrimaryAuthorRole) {
+            $errors[] = 'Google Books requires at least one A01 contributor role for every book.';
+        }
+'''
+          new = '''        foreach ($book->contributors as $contributor) {
+            if (trim((string) ($contributor['name'] ?? '')) === '') {
+                $errors[] = 'Contributor names cannot be empty.';
+            }
+            $roles = $this->contributorRoles($contributor);
+            if (count($roles) !== 1) {
+                $errors[] = 'Every contributor must contain exactly one three-character ONIX ContributorRole for Google Play Books.';
+            }
+            foreach ($roles as $role) {
+                if (!preg_match('/^[A-Z][0-9]{2}$/', $role)) {
+                    $errors[] = 'Every contributor role must be a three-character ONIX ContributorRole.';
+                }
+            }
+            if (!empty($contributor['orcid']) && IdentifierNormalizer::normalizeOrcid((string) $contributor['orcid']) === null) {
+                $errors[] = 'Contributor ORCID is invalid.';
+            }
+        }
+'''
+          if old not in text:
+              raise SystemExit('Validator contributor-role block not found')
+          text = text.replace(old, new, 1)
+
+          anchor = '''        if (preg_match('/<([A-Za-z][A-Za-z0-9]*)(?:\\s[^>]*)?><\\/\\1>/', $xml)) {
+            $errors[] = 'Generated ONIX contains an empty element.';
+        }
+'''
+          addition = '''        $trimmedXml = trim($xml);
+        if (!str_ends_with($trimmedXml, '</ONIXMessage>')) {
+            $errors[] = 'Generated ONIX is incomplete: closing ONIXMessage tag is missing.';
+        }
+        if (substr_count($xml, '<Product>') !== substr_count($xml, '</Product>')) {
+            $errors[] = 'Generated ONIX is incomplete: Product opening/closing tags do not match.';
+        }
+        if (preg_match('/<([A-Za-z][A-Za-z0-9]*)(?:\\s[^>]*)?><\\/\\1>/', $xml)) {
+            $errors[] = 'Generated ONIX contains an empty element.';
+        }
+'''
+          if anchor not in text:
+              raise SystemExit('Validator completeness anchor not found')
+          text = text.replace(anchor, addition, 1)
+
+          xsd_anchor = '''                } else {
+                    $xsdPath = $this->ompOnixSchemaPath();
+'''
+          xsd_addition = '''                } else {
+                    $xpath = new \\DOMXPath($dom);
+                    $xpath->registerNamespace('onix', 'http://ns.editeur.org/onix/3.0/reference');
+                    foreach ($xpath->query('//onix:Contributor') ?: [] as $contributorNode) {
+                        if ($xpath->query('./onix:ContributorRole', $contributorNode)->length !== 1) {
+                            $errors[] = 'Google Play Books profile requires exactly one ContributorRole in each Contributor composite.';
+                            break;
+                        }
+                    }
+                    $xsdPath = $this->ompOnixSchemaPath();
+'''
+          if xsd_anchor not in text:
+              raise SystemExit('Validator DOM/XSD anchor not found')
+          text = text.replace(xsd_anchor, xsd_addition, 1)
+          write(path, text)
+
+          # 4. Harden manager download against output already emitted before XML.
+          path = 'classes/DashboardHandler.php'
+          text = read(path)
+          old = '''            header('Content-Type: application/xml; charset=UTF-8');
+            header('Content-Disposition: attachment; filename="googlebooksvalidation' . $submissionId . '.xml"');
+            header('Content-Length: ' . strlen($xml));
+'''
+          new = '''            if (headers_sent()) {
+                throw new RuntimeException('Cannot send a complete ONIX validation file after HTTP output has already started.');
+            }
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            header('Content-Type: application/xml; charset=UTF-8');
+            header('Content-Disposition: attachment; filename="googlebooksvalidation' . $submissionId . '.xml"');
+            header('Content-Length: ' . strlen($xml));
+'''
+          if old not in text:
+              raise SystemExit('Validation download header block not found')
+          text = text.replace(old, new, 1)
+          text = text.replace("$assetVersion = '0.1.2.4';", "$assetVersion = '0.1.2.5';")
+          write(path, text)
+
+          # 5. Version markers.
+          path = 'version.xml'
+          text = read(path)
+          text = text.replace('<release>0.1.2.4</release>', '<release>0.1.2.5</release>')
+          text = text.replace('<date>2026-08-24</date>', '<date>2026-08-26</date>')
+          write(path, text)
+
+          path = 'classes/Api/GoogleBooksApiClient.php'
+          text = read(path).replace('GoogleBooksIntegrationForOMP/0.1.2.4', 'GoogleBooksIntegrationForOMP/0.1.2.5')
+          write(path, text)
+
+          # 6. Runtime tests updated to Google's explicit feedback.
+          path = 'tests/mapper_smoke.php'
+          text = read(path)
+          old = "mapperCheck($book !== null && ($book->contributors[0]['roles'] ?? []) === ['B01', 'A01'], 'edited-volume contributor did not retain B01 and receive required A01 compatibility role');"
+          new = "mapperCheck($book !== null && ($book->contributors[0]['roles'] ?? []) === ['B01'], 'edited-volume contributor did not preserve a single OMP-derived B01 role');"
+          if old not in text:
+              raise SystemExit('Mapper smoke contributor expectation not found')
+          text = text.replace(old, new, 1)
+          write(path, text)
+
+          path = 'tests/run.php'
+          text = read(path)
+          old = '''$editedVolume = clone $book;
+$editedVolume->contributors = [['role' => 'B01', 'roles' => ['B01'], 'name' => 'Volume Editor', 'orcid' => null]];
+check(in_array('Google Books requires at least one A01 contributor role for every book.', $validator->validateBook($editedVolume), true), 'Google A01 requirement was not enforced');
+$editedVolumeCompatible = clone $book;
+$editedVolumeCompatible->contributors = [['role' => 'B01', 'roles' => ['B01', 'A01'], 'name' => 'Volume Editor', 'orcid' => null]];
+check($validator->validateBook($editedVolumeCompatible) === [], 'Validator rejected an editor role paired with Google-required A01');
+$editedXml = $builder->build([$editedVolumeCompatible], 'Test Publisher');
+check(substr_count($editedXml, '<ContributorRole>B01</ContributorRole>') === 1 && substr_count($editedXml, '<ContributorRole>A01</ContributorRole>') === 1, 'Builder did not preserve multiple contributor roles');
+'''
+          new = '''$editedVolume = clone $book;
+$editedVolume->contributors = [['role' => 'B01', 'roles' => ['B01'], 'name' => 'Volume Editor', 'orcid' => null]];
+check($validator->validateBook($editedVolume) === [], 'Validator rejected an editor-only book with one primary B01 role');
+$editedVolumeLegacyMultiRole = clone $book;
+$editedVolumeLegacyMultiRole->contributors = [['role' => 'B01', 'roles' => ['B01', 'A01'], 'name' => 'Volume Editor', 'orcid' => null]];
+check(in_array('Every contributor must contain exactly one three-character ONIX ContributorRole for Google Play Books.', $validator->validateBook($editedVolumeLegacyMultiRole), true), 'Google single ContributorRole profile was not enforced');
+$editedXml = $builder->build([$editedVolumeLegacyMultiRole], 'Test Publisher');
+check(substr_count($editedXml, '<ContributorRole>B01</ContributorRole>') === 1 && !str_contains($editedXml, '<ContributorRole>A01</ContributorRole>'), 'Builder did not collapse legacy multi-role data to the primary role');
+'''
+          if old not in text:
+              raise SystemExit('Core contributor role tests not found')
+          text = text.replace(old, new, 1)
+          old = '''check(str_contains(file_get_contents(dirname(__DIR__) . '/classes/Sync/OmpBookMapper.php'), "\\$contributors[0]['roles'][] = 'A01'"), 'OMP mapper does not add Google-required A01 to editor-only volumes');'''
+          new = '''check(!str_contains(file_get_contents(dirname(__DIR__) . '/classes/Sync/OmpBookMapper.php'), "\\$contributors[0]['roles'][] = 'A01'"), 'OMP mapper still injects a synthetic A01 role into editor-only volumes');'''
+          if old not in text:
+              raise SystemExit('Core mapper source A01 check not found')
+          text = text.replace(old, new, 1)
+
+          # Add explicit truncation regression using the existing validator check count.
+          anchor = "check($validator->validateXml($xml) === [], 'ONIX validator rejected generated XML');\n"
+          addition = """$truncatedXml = substr($xml, 0, strrpos($xml, '</Product>'));
+check(in_array('Generated ONIX is incomplete: closing ONIXMessage tag is missing.', $validator->validateXml($truncatedXml), true), 'Truncated ONIX document was not rejected before delivery');
+"""
+          if addition not in text:
+              if anchor not in text:
+                  raise SystemExit('Core XML validator test anchor not found')
+              text = text.replace(anchor, anchor + addition, 1)
+          write(path, text)
+
+          # 7. Package/source contracts.
+          path = 'tests/package_check.py'
+          text = read(path)
+          text = text.replace("check(vals.get('lazy-load') == '0', '0.1.2.4 must remain non-lazy to repair legacy enabled settings')", "check(vals.get('lazy-load') == '0', '0.1.2.5 must remain non-lazy to repair legacy enabled settings')")
+          text = text.replace("check(vals.get('release') == '0.1.2.4', 'version.xml release mismatch')", "check(vals.get('release') == '0.1.2.5', 'version.xml release mismatch')")
+          text = text.replace("GoogleBooksIntegrationForOMP/0.1.2.4", "GoogleBooksIntegrationForOMP/0.1.2.5")
+          text = text.replace("check('contributorRoles($contributor)' in builder, 'multiple ONIX contributor-role support missing')", "check('contributorRole($contributor)' in builder and \"foreach ($this->contributorRoles($contributor) as $role)\" not in builder, 'Google single ContributorRole serialization contract missing')")
+          text = text.replace("check(\"Google Books requires at least one A01 contributor role\" in (ROOT / 'classes/Onix/GoogleOnixValidator.php').read_text(encoding='utf-8'), 'Google A01 contributor requirement missing')", "check('count($roles) !== 1' in (ROOT / 'classes/Onix/GoogleOnixValidator.php').read_text(encoding='utf-8'), 'Google single ContributorRole validation contract missing')")
+          text = text.replace("check(\"$contributors[0]['roles'][] = 'A01'\" in mapper, 'editor-only OMP compatibility role mapping missing')", "check(\"$contributors[0]['roles'][] = 'A01'\" not in mapper, 'mapper still injects a synthetic A01 compatibility role')")
+          old = "check('validateMetadataBook($book)' in manifest and 'validateRightsBook($book)' in manifest, 'validation sample and live rights feed validation are not separated')"
+          new = "check('validateMetadataBook($book)' in manifest and 'validateRightsBook($book)' in manifest, 'validation sample and live rights feed validation are not separated')\ncheck(\"str_ends_with($trimmedXml, '</ONIXMessage>')\" in validator_source and \"substr_count($xml, '<Product>')\" in validator_source, 'truncated ONIX completeness guards missing')"
+          if old not in text:
+              raise SystemExit('Package manifest validation anchor not found')
+          text = text.replace(old, new, 1)
+          write(path, text)
+
+          # 8. Public documentation and release metadata.
+          path = 'README.md'
+          text = read(path)
+          marker = '# Google Books Integration for OMP\n\n'
+          note = """### 0.1.2.5 Google Play Books ONIX profile corrections
+
+Release 0.1.2.5 incorporates direct Google Play Books validation feedback. Each `<Contributor>` now serializes exactly one primary `<ContributorRole>` derived from OMP; the previous editor-only compatibility fallback that appended `A01` to a `B01` contributor has been removed. Legacy multi-role data is defensively collapsed to the primary role during serialization.
+
+Validation/download hardening now rejects incomplete XML before delivery, checks balanced `<Product>` composites and a closing `</ONIXMessage>`, and prevents manager downloads after stray HTTP output has already started. Pricing behavior remains publisher-neutral and OMP-derived: genuinely free titles retain `<UnpricedItemType>01</UnpricedItemType>`, while positive OMP market prices continue to generate `<Price>` composites.
+
+"""
+          if note not in text:
+              text = text.replace(marker, marker + note, 1)
+          text = text.replace('- Current release: `0.1.2.4`', '- Current release: `0.1.2.5`')
+          write(path, text)
+
+          path = 'CHANGELOG.md'
+          text = read(path)
+          entry = """## 0.1.2.5 - 2026-08-26
+
+- Implements Google Play Books validation feedback requiring exactly one `ContributorRole` per `Contributor` composite.
+- Removes the synthetic `A01` compatibility role previously appended to editor-only (`B01`) contributors; OMP's primary contributor role is now preserved without alteration.
+- Defensively collapses legacy multi-role contributor data to one primary role when serializing ONIX.
+- Adds explicit incomplete/truncated XML guards for a closing `ONIXMessage` and balanced `Product` composites before delivery.
+- Hardens validation-file downloads against stray buffered HTTP output while preserving exact `Content-Length` delivery.
+- Keeps pricing publisher-neutral and OMP-derived: free products use `UnpricedItemType 01`; paid OMP markets generate `Price` composites.
+- Bumps the plugin and API User-Agent to 0.1.2.5 without a database migration.
+
+"""
+          if not text.startswith('## 0.1.2.5 - 2026-08-26'):
+              text = entry + text
+          write(path, text)
+
+          path = 'VALIDATION.md'
+          text = read(path)
+          text = text.replace('# Google Books Integration for OMP 0.1.2.4 - Validation Report', '# Google Books Integration for OMP 0.1.2.5 - Validation Report', 1)
+          text = text.replace('**Release date:** 2026-08-24', '**Release date:** 2026-08-26', 1)
+          section = """## Google Play Books contributor-role and XML-completeness corrections
+
+Following direct Google Play Books validation feedback, every generated `Contributor` composite now contains exactly one primary `ContributorRole`. The mapper no longer adds a synthetic `A01` role to editor-only records and the builder defensively serializes only the primary role if legacy data still contains multiple role values. The runtime validator rejects multi-role contributor composites under the Google profile.
+
+Generated ONIX is also checked explicitly for a closing `</ONIXMessage>` and balanced `Product` opening/closing tags before it can be downloaded or delivered. The manager download path refuses to send XML after stray output has already started and retains an exact `Content-Length` header.
+
+Pricing logic is unchanged and remains sourced from OMP: free titles emit `UnpricedItemType 01`, while positive market prices emit a `Price` composite with amount and currency. No publisher-specific price is hard-coded.
+
+"""
+          anchor = '## Concurrent authenticated HTTPS feed and push delivery\n'
+          if section not in text:
+              if anchor in text:
+                  text = text.replace(anchor, section + anchor, 1)
+              else:
+                  text += '\n' + section
+          write(path, text)
+
+          # Keep validation-results counts conservative until CI confirms them.
+          path = 'validation-results.txt'
+          text = read(path)
+          text = text.replace('Google Books Integration for OMP 0.1.2.4 - Final validation', 'Google Books Integration for OMP 0.1.2.5 - Final validation')
+          text = text.replace('Date: 2026-08-24', 'Date: 2026-08-26')
+          write(path, text)
+
+          release_notes = """# Google Books Integration for OMP 0.1.2.5
+
+Release date: 2026-08-26
+
+## Google Play Books validation corrections
+
+This maintenance release implements direct validation feedback from the Google Play Books team.
+
+### One ContributorRole per Contributor
+
+Generated ONIX now contains exactly one primary `ContributorRole` in each `Contributor` composite. OMP contributor roles such as `B01` (editor) are preserved as recorded. The former editor-only fallback that appended an additional `A01` role has been removed. Legacy multi-role data is defensively serialized using the primary role only.
+
+### Complete XML delivery
+
+The validator now rejects XML without a closing `ONIXMessage` and rejects mismatched `Product` opening/closing composites before delivery. Manager downloads also refuse to begin after stray HTTP output has already been emitted and continue to declare the exact `Content-Length` of the generated XML.
+
+### Pricing confirmation behavior
+
+No publisher-specific price is hard-coded. Pricing remains sourced from OMP. Products resolved as free emit `UnpricedItemType 01`; products with a positive OMP market price emit a `Price` composite with price type, amount, currency and territory.
+
+## Compatibility
+
+- Open Monograph Press 3.5.x
+- Primary target: OMP 3.5.0-5 LTS
+- No database migration required
+- Existing credentials, delivery settings, collection codes and synchronization state are preserved
+"""
+          write('RELEASE_NOTES_v0.1.2.5.md', release_notes)
+          PY
+
+      - name: Run complete test suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash tests/run_all.sh
+
+      - name: Commit verified corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/apply-v0.1.2.5.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Apply Google Play Books ONIX corrections v0.1.2.5'
+          git push origin HEAD:fix-google-onix-v0.1.2.5
