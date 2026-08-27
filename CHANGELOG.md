@@ -1,3 +1,14 @@
+## 0.1.2.8 - 2026-08-27
+
+- Adds source-backed optional ONIX enrichment requested by Google Play Books without inventing metadata.
+- Exports explicit publisher BISAC (`SubjectSchemeIdentifier 10`) and Thema (`93`) codes when those fields are actually present and valid.
+- Exports OMP keywords/subjects/disciplines as ONIX keyword subjects (`SubjectSchemeIdentifier 20`) when no controlled classification is available.
+- Adds truthful `Extent` composites from explicit total-page metadata plus OMP front/back matter counts when available; no PDF page-count guessing is performed.
+- Adds `RelatedProduct` / relation code `06` for real ISBN-bearing alternative publication formats of the same monograph.
+- Reuses a source abstract from another available localized OMP value when the mapped publication-locale summary is empty.
+- Optional enrichments are validated when present but never made ingestion-blocking when the source metadata is absent.
+- Bumps the plugin and Google Books API User-Agent to 0.1.2.8; no database migration.
+
 ## 0.1.2.5 - 2026-08-26
 
 - Implements Google Play Books validation feedback requiring exactly one `ContributorRole` per `Contributor` composite.

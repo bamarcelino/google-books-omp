@@ -135,6 +135,30 @@ final class GoogleOnixBuilder
         $xml .= Xml::element('LanguageRole', '01', 4);
         $xml .= Xml::element('LanguageCode', LanguageMapper::toOnix($book->language), 4);
         $xml .= "      </Language>\n";
+
+        foreach ($book->extents as $extent) {
+            $type = trim((string) ($extent['type'] ?? ''));
+            $value = trim((string) ($extent['value'] ?? ''));
+            $unit = trim((string) ($extent['unit'] ?? ''));
+            if ($type === '' || $value === '' || $unit === '') { continue; }
+            $xml .= "      <Extent>\n";
+            $xml .= Xml::element('ExtentType', $type, 4);
+            $xml .= Xml::element('ExtentValue', $value, 4);
+            $xml .= Xml::element('ExtentUnit', $unit, 4);
+            $xml .= "      </Extent>\n";
+        }
+
+        foreach ($book->subjects as $subject) {
+            $scheme = trim((string) ($subject['scheme'] ?? ''));
+            $code = trim((string) ($subject['code'] ?? ''));
+            $heading = trim((string) ($subject['heading'] ?? ''));
+            if ($scheme === '' || ($code === '' && $heading === '')) { continue; }
+            $xml .= "      <Subject>\n";
+            $xml .= Xml::element('SubjectSchemeIdentifier', $scheme, 4);
+            if ($code !== '') { $xml .= Xml::element('SubjectCode', $code, 4); }
+            if ($heading !== '') { $xml .= Xml::element('SubjectHeadingText', $heading, 4); }
+            $xml .= "      </Subject>\n";
+        }
         $xml .= "    </DescriptiveDetail>\n";
 
         if ($book->description) {
@@ -166,6 +190,28 @@ final class GoogleOnixBuilder
             $xml .= $this->buildSalesRights($book);
         }
         $xml .= "    </PublishingDetail>\n";
+
+        $relatedProducts = [];
+        foreach ($book->relatedProducts as $related) {
+            $relatedIsbn = IdentifierNormalizer::preferredIsbn13((string) ($related['isbn13'] ?? ''));
+            $relationCode = trim((string) ($related['relationCode'] ?? '06'));
+            if ($relatedIsbn === null || $relatedIsbn === $isbn13 || !preg_match('/^\d{2}$/', $relationCode)) { continue; }
+            $relatedProducts[$relationCode . ':' . $relatedIsbn] = [$relationCode, $relatedIsbn];
+        }
+        if ($relatedProducts !== []) {
+            ksort($relatedProducts);
+            $xml .= "    <RelatedMaterial>\n";
+            foreach ($relatedProducts as [$relationCode, $relatedIsbn]) {
+                $xml .= "      <RelatedProduct>\n";
+                $xml .= Xml::element('ProductRelationCode', $relationCode, 4);
+                $xml .= "        <ProductIdentifier>\n";
+                $xml .= Xml::element('ProductIDType', '15', 5);
+                $xml .= Xml::element('IDValue', $relatedIsbn, 5);
+                $xml .= "        </ProductIdentifier>\n";
+                $xml .= "      </RelatedProduct>\n";
+            }
+            $xml .= "    </RelatedMaterial>\n";
+        }
 
         if ($includeSupplyDetail) {
             $xml .= $this->buildProductSupply($book);

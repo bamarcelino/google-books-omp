@@ -3,7 +3,7 @@
 <version>
     <application>googleBooks</application>
     <type>plugins.generic</type>
-    <release>0.1.2.7</release>
+    <release>0.1.2.8</release>
     <date>2026-08-27</date>
     <lazy-load>0</lazy-load>
     <class>GoogleBooksPlugin</class>

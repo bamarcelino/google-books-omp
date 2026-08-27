@@ -13,6 +13,7 @@ use APP\facades\Repo;
 use APP\plugins\generic\googleBooks\classes\Model\BookMetadata;
 use APP\plugins\generic\googleBooks\classes\Onix\GoogleOnixBuilder;
 use APP\plugins\generic\googleBooks\classes\Onix\GoogleOnixValidator;
+use APP\plugins\generic\googleBooks\classes\Onix\OnixEnrichmentService;
 use APP\plugins\generic\googleBooks\classes\Repository\GoogleBooksStateRepository;
 use APP\plugins\generic\googleBooks\classes\Sync\OmpBookMapper;
 use APP\plugins\generic\googleBooks\GoogleBooksPlugin;
@@ -28,12 +29,14 @@ final class FeedManifestService
     private OmpBookMapper $mapper;
     private GoogleOnixValidator $validator;
     private GoogleBooksStateRepository $repository;
+    private OnixEnrichmentService $enrichment;
 
     public function __construct(private GoogleBooksPlugin $plugin)
     {
         $this->mapper = new OmpBookMapper();
         $this->validator = new GoogleOnixValidator();
         $this->repository = new GoogleBooksStateRepository();
+        $this->enrichment = new OnixEnrichmentService();
     }
 
     /** @return BookMetadata[] */
@@ -51,6 +54,7 @@ final class FeedManifestService
 
         foreach ($submissions as $submission) {
             foreach ($this->mapper->mapSubmission($submission, $context, $defaultFree, $defaultWorldwideRights) as $book) {
+                $book = $this->enrichment->enrich($book, $submission, $context);
                 $errors = $rightsProfile ? $this->validator->validateRightsBook($book) : $this->validator->validateBook($book);
                 if ($errors !== []) {
                     continue;
@@ -129,6 +133,7 @@ final class FeedManifestService
                 $defaultWorldwideRights,
                 false,
             ) as $book) {
+                $book = $this->enrichment->enrich($book, $candidate, $context);
                 if ($this->validator->validateCommercialMetadataBook($book) !== []) {
                     continue;
                 }

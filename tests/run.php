@@ -349,6 +349,20 @@ check(str_contains($xml, '<ProductForm>EA</ProductForm>'), 'ONIX digital product
 check(str_contains($xml, '<ProductFormDetail>E101</ProductFormDetail>') && str_contains($xml, '<ProductFormDetail>E107</ProductFormDetail>'), 'ONIX EPUB/PDF product details are incomplete');
 check(str_contains($xml, '<CollectionIDType>02</CollectionIDType>') && str_contains($xml, '<IDValue>20493630</IDValue>'), 'ONIX normalized series ISSN is missing');
 check(str_contains($xml, '<SentDateTime>20260813T163045Z</SentDateTime>'), 'ONIX SentDateTime does not include precise UTC time');
+$enriched = clone $book;
+$enriched->subjects = [
+    ['scheme' => '10', 'code' => 'SOC000000', 'heading' => null],
+    ['scheme' => '20', 'code' => null, 'heading' => 'culture; education'],
+];
+$enriched->extents = [['type' => '00', 'value' => '240', 'unit' => '03']];
+$enriched->relatedProducts = [['relationCode' => '06', 'isbn13' => '9780131103627']];
+$enrichedXml = $builder->build([$enriched], 'Test Publisher');
+check(str_contains($enrichedXml, '<SubjectSchemeIdentifier>10</SubjectSchemeIdentifier>') && str_contains($enrichedXml, '<SubjectCode>SOC000000</SubjectCode>'), 'BISAC Subject enrichment is missing');
+check(str_contains($enrichedXml, '<SubjectSchemeIdentifier>20</SubjectSchemeIdentifier>') && str_contains($enrichedXml, '<SubjectHeadingText>culture; education</SubjectHeadingText>'), 'Keyword Subject enrichment is missing');
+check(str_contains($enrichedXml, '<ExtentType>00</ExtentType>') && str_contains($enrichedXml, '<ExtentValue>240</ExtentValue>') && str_contains($enrichedXml, '<ExtentUnit>03</ExtentUnit>'), 'Page-count Extent enrichment is missing');
+check(str_contains($enrichedXml, '<RelatedMaterial>') && str_contains($enrichedXml, '<ProductRelationCode>06</ProductRelationCode>') && str_contains($enrichedXml, '<IDValue>9780131103627</IDValue>'), 'RelatedProduct alternative-format ISBN is missing');
+check($validator->validateMetadataBook($enriched) === [], 'Validator rejected valid optional ONIX enrichments');
+check($validator->validateXml($enrichedXml) === [], 'XSD/runtime validator rejected enriched ONIX ordering or structure');
 check(str_contains($xml, '<SalesRightsType>02</SalesRightsType>') && str_contains($xml, '<RegionsIncluded>WORLD</RegionsIncluded>'), 'Google rights ONIX is missing SalesRights territory');
 check(str_contains($xml, '<UnpricedItemType>01</UnpricedItemType>') && !str_contains($xml, '<PriceAmount>0'), 'Free book ONIX pricing is not Google-compatible');
 check((bool) preg_match('/<SupplyDetail>.*?<UnpricedItemType>01<\/UnpricedItemType>.*?<\/SupplyDetail>/s', $xml), 'Google free-book UnpricedItemType is not a direct SupplyDetail child');
