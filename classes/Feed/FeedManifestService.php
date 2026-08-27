@@ -91,6 +91,7 @@ final class FeedManifestService
             $xml,
             $includeSupplyDetail ? 'rights' : 'bibliographic',
             count($books),
+            $includeSupplyDetail,
         );
     }
 
@@ -106,11 +107,12 @@ final class FeedManifestService
         $defaultWorldwideRights = $this->plugin->boolSetting($contextId, 'defaultWorldwideRightsForFree', false);
         $books = [];
 
-        // Google's one-time validation sample is metadata-only. Keep the title
-        // explicitly selected by the manager as the anchor, then supplement it
-        // with other real published OMP products until the sample contains up to
-        // ten unique ISBN records. No fictitious ISBN or synthetic product is
-        // created because a validation file may be ingested accidentally.
+        // Google Play validates the commercial structure in the ten-record ONIX
+        // sample as well as its bibliographic metadata. Keep the title selected
+        // by the manager as the preferred anchor, then supplement it with real
+        // published OMP products that already have valid SalesRights and supply
+        // terms. Content assets are not required for the sample because they are
+        // validated and delivered through the separate ebook/content feed.
         $appendEligibleProducts = function (object $candidate) use (
             &$books,
             $context,
@@ -124,7 +126,7 @@ final class FeedManifestService
                 $defaultWorldwideRights,
                 false,
             ) as $book) {
-                if ($this->validator->validateMetadataBook($book) !== []) {
+                if ($this->validator->validateCommercialMetadataBook($book) !== []) {
                     continue;
                 }
                 if (isset($books[$book->isbn13])) {
@@ -138,9 +140,6 @@ final class FeedManifestService
         };
 
         $appendEligibleProducts($submission);
-        if ($books === []) {
-            throw new RuntimeException('The selected validation monograph does not contain an eligible ISBN product with the metadata required for Google ONIX validation.');
-        }
 
         if (count($books) < self::VALIDATION_TARGET_COUNT) {
             $published = Repo::submission()
@@ -160,16 +159,29 @@ final class FeedManifestService
             }
         }
 
+        if (count($books) < self::VALIDATION_TARGET_COUNT) {
+            throw new RuntimeException(sprintf(
+                'Google Play Books validation requires at least %d real products with valid ISBN, bibliographic metadata, SalesRights and supply terms; only %d eligible product(s) were found.',
+                self::VALIDATION_TARGET_COUNT,
+                count($books),
+            ));
+        }
+
         $xml = (new GoogleOnixBuilder())->build(
             array_values($books),
             (string) ($context->getData('publisher') ?: $context->getName($context->getPrimaryLocale())),
             (string) $context->getData('contactName'),
             (string) $context->getData('contactEmail'),
             $this->sentAt($contextId),
-            false,
+            true,
         );
 
-        return $this->assertDeliverableXml($xml, 'validation', count($books));
+        return $this->assertDeliverableXml(
+            $xml,
+            'validation-commercial',
+            self::VALIDATION_TARGET_COUNT,
+            true,
+        );
     }
 
     /**
@@ -203,13 +215,20 @@ final class FeedManifestService
      * Refuse to expose a partially generated or structurally invalid ONIX
      * document. The full XML is built in memory first, then parsed and, when
      * OMP's ONIX schema is available, XSD-validated before FeedHandler writes
-     * any HTTP response bytes. This is deliberately done for large catalogues
-     * too, so a late product-generation error can never leave Google with a
-     * syntactically truncated feed that looks like a valid partial catalogue.
+     * any HTTP response bytes. Commercial profiles additionally require the
+     * Google Play SalesRights/ProductSupply structure on every Product.
      */
-    private function assertDeliverableXml(string $xml, string $profile, int $expectedProducts): string
-    {
+    private function assertDeliverableXml(
+        string $xml,
+        string $profile,
+        int $expectedProducts,
+        bool $requireCommercial = false,
+    ): string {
         $errors = $this->validator->validateXml($xml);
+        if ($requireCommercial) {
+            $errors = array_merge($errors, $this->validator->validateCommercialXml($xml));
+        }
+
         $openProducts = substr_count($xml, '<Product>');
         $closedProducts = substr_count($xml, '</Product>');
 
