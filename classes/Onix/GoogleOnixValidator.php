@@ -12,7 +12,7 @@ final class GoogleOnixValidator
     /**
      * Validate bibliographic metadata required by Google's ONIX ingestion
      * profile. This intentionally does not require an EPUB/PDF asset or sales
-     * rights so it can also be used for Google's one-time ONIX format sample.
+     * rights, so it can also be reused by discovery-oriented code.
      *
      * @return string[]
      */
@@ -77,6 +77,22 @@ final class GoogleOnixValidator
         }
 
         return array_values(array_unique($errors));
+    }
+
+    /**
+     * Validate bibliographic + commercial metadata for Google's ONIX
+     * verification sample without requiring an EPUB/PDF asset. Google validates
+     * SalesRights and ProductSupply in the sample itself, while content files
+     * are delivered through the separate content-feed surface.
+     *
+     * @return string[]
+     */
+    public function validateCommercialMetadataBook(BookMetadata $book): array
+    {
+        return array_values(array_unique(array_merge(
+            $this->validateMetadataBook($book),
+            $this->validateCommercialTerms($book),
+        )));
     }
 
     /**
@@ -152,10 +168,27 @@ final class GoogleOnixValidator
      */
     public function validateRightsBook(BookMetadata $book): array
     {
-        $errors = $this->validateBook($book);
+        return array_values(array_unique(array_merge(
+            $this->validateBook($book),
+            $this->validateCommercialTerms($book),
+        )));
+    }
+
+    /**
+     * Validate the commercial terms shared by the rights feed and Google's
+     * validation sample. Free books require an explicit sale-rights territory;
+     * the builder can then derive a free ProductSupply market from that same
+     * territory. Paid books additionally require an OMP market with a positive
+     * amount, currency, supported PriceType and included territory.
+     *
+     * @return string[]
+     */
+    private function validateCommercialTerms(BookMetadata $book): array
+    {
+        $errors = [];
 
         if ($book->salesRights === []) {
-            $errors[] = 'At least one SalesRights territory is required for the Google rights feed.';
+            $errors[] = 'At least one SalesRights territory is required for Google Play Books.';
         }
 
         $hasSaleTerritory = false;
@@ -228,7 +261,6 @@ final class GoogleOnixValidator
         }
         return $roles;
     }
-
 
     private function isValidSeriesIdentifier(string $identifier): bool
     {
@@ -306,6 +338,99 @@ final class GoogleOnixValidator
             }
         }
         return array_values(array_unique(array_filter($errors)));
+    }
+
+    /**
+     * Validate Google Play's commercial composites on every Product. This is
+     * deliberately separate from generic XML/XSD validation because Google's
+     * ingestion profile requires SalesRights and ProductSupply even when the
+     * ONIX schema itself would permit a bibliographic-only record.
+     *
+     * @return string[]
+     */
+    public function validateCommercialXml(string $xml): array
+    {
+        $errors = [];
+        if (!class_exists('DOMDocument')) {
+            foreach (['<SalesRights>', '<ProductSupply>', '<Market>', '<MarketPublishingDetail>', '<SupplyDetail>'] as $required) {
+                if (!str_contains($xml, $required)) {
+                    $errors[] = 'Missing required Google Play commercial element: ' . trim($required, '<>');
+                }
+            }
+            return $errors;
+        }
+
+        $dom = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        try {
+            if (!$dom->loadXML($xml, LIBXML_NONET)) {
+                return ['Commercial profile validation could not parse the generated ONIX XML.'];
+            }
+
+            $xpath = new \DOMXPath($dom);
+            $xpath->registerNamespace('onix', 'http://ns.editeur.org/onix/3.0/reference');
+            foreach ($xpath->query('/onix:ONIXMessage/onix:Product') ?: [] as $product) {
+                $record = trim((string) $xpath->evaluate('string(./onix:RecordReference)', $product));
+                $label = $record !== '' ? $record : 'unknown product';
+
+                if ($xpath->query('./onix:PublishingDetail/onix:SalesRights', $product)->length === 0) {
+                    $errors[] = $label . ': missing SalesRights.';
+                }
+
+                $supplies = $xpath->query('./onix:ProductSupply', $product);
+                if ($supplies->length === 0) {
+                    $errors[] = $label . ': missing ProductSupply.';
+                    continue;
+                }
+
+                foreach ($supplies as $supply) {
+                    if ($xpath->query('./onix:Market/onix:Territory', $supply)->length === 0) {
+                        $errors[] = $label . ': ProductSupply is missing Market/Territory.';
+                    }
+                    if ($xpath->query('./onix:MarketPublishingDetail/onix:MarketPublishingStatus', $supply)->length === 0) {
+                        $errors[] = $label . ': ProductSupply is missing MarketPublishingDetail/MarketPublishingStatus.';
+                    }
+                    $details = $xpath->query('./onix:SupplyDetail', $supply);
+                    if ($details->length === 0) {
+                        $errors[] = $label . ': ProductSupply is missing SupplyDetail.';
+                        continue;
+                    }
+                    foreach ($details as $detail) {
+                        if ($xpath->query('./onix:Supplier/onix:SupplierRole', $detail)->length === 0) {
+                            $errors[] = $label . ': SupplyDetail is missing Supplier.';
+                        }
+                        if ($xpath->query('./onix:ProductAvailability', $detail)->length === 0) {
+                            $errors[] = $label . ': SupplyDetail is missing ProductAvailability.';
+                        }
+                        $unpriced = $xpath->query('./onix:UnpricedItemType', $detail);
+                        $prices = $xpath->query('./onix:Price', $detail);
+                        if ($unpriced->length === 0 && $prices->length === 0) {
+                            $errors[] = $label . ': SupplyDetail must contain UnpricedItemType or Price.';
+                        }
+                        if ($unpriced->length > 0 && $prices->length > 0) {
+                            $errors[] = $label . ': SupplyDetail cannot contain both UnpricedItemType and Price.';
+                        }
+                        foreach ($unpriced as $node) {
+                            if (trim((string) $node->textContent) !== '01') {
+                                $errors[] = $label . ': free products must use UnpricedItemType 01.';
+                            }
+                        }
+                        foreach ($prices as $price) {
+                            foreach (['PriceType', 'PriceAmount', 'CurrencyCode'] as $field) {
+                                if ($xpath->query('./onix:' . $field, $price)->length === 0) {
+                                    $errors[] = $label . ': Price is missing ' . $field . '.';
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+
+        return array_values(array_unique($errors));
     }
 
     /**
