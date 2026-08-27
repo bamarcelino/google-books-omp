@@ -23,7 +23,10 @@ jobs:
 
       - name: Apply source changes
         shell: bash
-        run: python3 .github/scripts/apply_v0129.py
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/apply_v0129.py
+          python3 .github/scripts/fix_tests_v0129.py
 
       - name: Install validation dependencies
         shell: bash
@@ -42,7 +45,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -f .github/workflows/apply-v0.1.2.9.yml .github/scripts/apply_v0129.py
+          rm -f .github/workflows/apply-v0.1.2.9.yml .github/scripts/apply_v0129.py .github/scripts/fix_tests_v0129.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
