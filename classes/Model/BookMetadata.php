@@ -17,6 +17,9 @@ final class BookMetadata
      * @param array<int,array{type:string,countriesIncluded:array<int,string>,regionsIncluded:array<int,string>,countriesExcluded:array<int,string>,regionsExcluded:array<int,string>}> $salesRights
      * @param array<int,array{amount:string,currency:string,priceType:string,productAvailability:string,countriesIncluded:array<int,string>,regionsIncluded:array<int,string>,countriesExcluded:array<int,string>,regionsExcluded:array<int,string>}> $markets
      * @param array<int,array{kind:string,fileId:int,formatId:int,path:string,mime:string,extension:string,size:int,modified:int,filename:string,directSalesPrice?:float}> $assets
+     * @param array<int,array{scheme:string,code:?string,heading:?string}> $subjects
+     * @param array<int,array{type:string,value:string,unit:string}> $extents
+     * @param array<int,array{relationCode:string,isbn13:string}> $relatedProducts
      */
     public function __construct(
         public int $contextId,
@@ -41,6 +44,9 @@ final class BookMetadata
         public ?string $seriesIdentifier = null,
         public array $salesRights = [],
         public array $markets = [],
+        public array $subjects = [],
+        public array $extents = [],
+        public array $relatedProducts = [],
     ) {
     }
 
@@ -65,6 +71,9 @@ final class BookMetadata
             'seriesTitle' => $this->seriesTitle,
             'seriesIssn' => $this->seriesIssn,
             'seriesIdentifier' => $this->seriesIdentifier,
+            'subjects' => $this->subjects,
+            'extents' => $this->extents,
+            'relatedProducts' => $this->relatedProducts,
         ];
         return hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     }

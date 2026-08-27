@@ -76,6 +76,20 @@ final class GoogleOnixValidator
             $errors[] = 'Series title is required when a proprietary series identifier is supplied.';
         }
 
+        foreach ($book->subjects as $subject) {
+            $scheme = trim((string) ($subject['scheme'] ?? ''));
+            $code = trim((string) ($subject['code'] ?? ''));
+            $heading = trim((string) ($subject['heading'] ?? ''));
+            if (!preg_match('/^\d{2}$/', $scheme) || ($code === '' && $heading === '')) { $errors[] = 'Every ONIX Subject must contain a two-digit scheme and either SubjectCode or SubjectHeadingText.'; }
+        }
+        foreach ($book->extents as $extent) {
+            if (!preg_match('/^\d{2}$/', (string) ($extent['type'] ?? '')) || !preg_match('/^\d+$/', (string) ($extent['value'] ?? '')) || !preg_match('/^\d{2}$/', (string) ($extent['unit'] ?? ''))) { $errors[] = 'Every ONIX Extent must contain valid type, numeric value and unit codes.'; }
+        }
+        foreach ($book->relatedProducts as $related) {
+            $relatedIsbn = IdentifierNormalizer::preferredIsbn13((string) ($related['isbn13'] ?? ''));
+            if ($relatedIsbn === null || $relatedIsbn === $book->isbn13 || !preg_match('/^\d{2}$/', (string) ($related['relationCode'] ?? ''))) { $errors[] = 'Every RelatedProduct must reference a different valid ISBN-13 and a two-digit ProductRelationCode.'; }
+        }
+
         return array_values(array_unique($errors));
     }
 
