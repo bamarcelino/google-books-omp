@@ -1,0 +1,582 @@
+name: Apply Google Books OMP v0.1.2.8 enrichment
+
+on:
+  push:
+    branches:
+      - fix/google-onix-enrichment-0.1.2.8
+    paths:
+      - '.github/workflows/apply-v0.1.2.8.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/google-onix-enrichment-0.1.2.8
+          fetch-depth: 0
+      - name: Apply source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+
+          p = root / 'classes/Model/BookMetadata.php'
+          s = p.read_text(encoding='utf-8')
+          s = s.replace(
+              "     * @param array<int,array{kind:string,fileId:int,formatId:int,path:string,mime:string,extension:string,size:int,modified:int,filename:string,directSalesPrice?:float}> $assets\n",
+              "     * @param array<int,array{kind:string,fileId:int,formatId:int,path:string,mime:string,extension:string,size:int,modified:int,filename:string,directSalesPrice?:float}> $assets\n"
+              "     * @param array<int,array{scheme:string,code:?string,heading:?string}> $subjects\n"
+              "     * @param array<int,array{type:string,value:string,unit:string}> $extents\n"
+              "     * @param array<int,array{relationCode:string,isbn13:string}> $relatedProducts\n"
+          )
+          s = s.replace(
+              "        public array $markets = [],\n    ) {",
+              "        public array $markets = [],\n"
+              "        public array $subjects = [],\n"
+              "        public array $extents = [],\n"
+              "        public array $relatedProducts = [],\n"
+              "    ) {"
+          )
+          s = s.replace(
+              "            'seriesIdentifier' => $this->seriesIdentifier,\n",
+              "            'seriesIdentifier' => $this->seriesIdentifier,\n"
+              "            'subjects' => $this->subjects,\n"
+              "            'extents' => $this->extents,\n"
+              "            'relatedProducts' => $this->relatedProducts,\n"
+          )
+          p.write_text(s, encoding='utf-8')
+
+          p = root / 'classes/Onix/OnixEnrichmentService.php'
+          p.write_text(r'''<?php
+
+declare(strict_types=1);
+
+/**
+ * Source-backed ONIX enrichment for Google Books / Google Play Books.
+ *
+ * This service never invents classifications, pagination, summaries or ISBNs.
+ * Optional ONIX composites are emitted only when the corresponding metadata is
+ * present in OMP (or in an explicitly named custom metadata field).
+ *
+ * Copyright (c) 2026 Bruno Cesar Alves Marcelino / Scientia International
+ * Distributed under the GNU GPL v3 or later.
+ */
+
+namespace APP\plugins\generic\googleBooks\classes\Onix;
+
+use APP\plugins\generic\googleBooks\classes\Model\BookMetadata;
+use APP\plugins\generic\googleBooks\classes\Util\IdentifierNormalizer;
+use PKP\db\DAORegistry;
+use Throwable;
+
+final class OnixEnrichmentService
+{
+    public function enrich(BookMetadata $book, object $submission, object $context): BookMetadata
+    {
+        $publication = method_exists($submission, 'getCurrentPublication')
+            ? $submission->getCurrentPublication()
+            : null;
+        if (!$publication) {
+            return $book;
+        }
+
+        $locale = (string) ($publication->getData('locale') ?: $context->getPrimaryLocale());
+        if (!$book->description) {
+            $book->description = $this->firstLocalizedText($publication, 'abstract', $locale);
+        }
+
+        $book->subjects = $this->subjects($publication, $locale);
+        [$format, $formats] = $this->formatForBook($publication, $context, $book->isbn13);
+        $book->extents = $format ? $this->extents($format) : [];
+        $book->relatedProducts = $this->relatedProducts($formats, $book->isbn13);
+
+        return $book;
+    }
+
+    /** @return array<int,array{scheme:string,code:?string,heading:?string}> */
+    private function subjects(object $publication, string $locale): array
+    {
+        $subjects = [];
+
+        foreach ([
+            ['scheme' => '10', 'fields' => ['bisac', 'bisacCode', 'bisacCodes'], 'pattern' => '/^[A-Z]{3}[0-9]{6}$/'],
+            ['scheme' => '93', 'fields' => ['thema', 'themaCode', 'themaCodes'], 'pattern' => '/^[A-Z][A-Z0-9]{0,6}$/'],
+        ] as $definition) {
+            foreach ($definition['fields'] as $field) {
+                foreach ($this->metadataValues($publication, $field, $locale) as $value) {
+                    $code = strtoupper(preg_replace('/\s+/', '', $value) ?? $value);
+                    if (!preg_match($definition['pattern'], $code)) {
+                        continue;
+                    }
+                    $subjects[] = ['scheme' => $definition['scheme'], 'code' => $code, 'heading' => null];
+                }
+            }
+        }
+
+        $keywords = [];
+        foreach (['keywords', 'subjects', 'disciplines'] as $field) {
+            foreach ($this->metadataValues($publication, $field, $locale) as $value) {
+                $value = $this->cleanText($value);
+                if ($value !== '' && !in_array($value, $keywords, true)) {
+                    $keywords[] = $value;
+                }
+            }
+        }
+        if ($keywords !== []) {
+            $subjects[] = [
+                'scheme' => '20',
+                'code' => null,
+                'heading' => implode('; ', $keywords),
+            ];
+        }
+
+        return $this->uniqueRows($subjects);
+    }
+
+    /** @return array<int,array{type:string,value:string,unit:string}> */
+    private function extents(object $format): array
+    {
+        $extents = [];
+        $pageCount = $this->positiveIntegerFromFormat($format, [
+            'pageCount', 'pages', 'extentPages', 'numberOfPages',
+        ], ['getPageCount', 'getPages', 'getNumberOfPages']);
+        if ($pageCount !== null) {
+            $extents[] = ['type' => '00', 'value' => (string) $pageCount, 'unit' => '03'];
+        }
+
+        $front = $this->positiveIntegerFromFormat($format, ['frontMatter'], ['getFrontMatter']);
+        if ($front !== null) {
+            $extents[] = ['type' => '03', 'value' => (string) $front, 'unit' => '03'];
+        }
+        $back = $this->positiveIntegerFromFormat($format, ['backMatter'], ['getBackMatter']);
+        if ($back !== null) {
+            $extents[] = ['type' => '04', 'value' => (string) $back, 'unit' => '03'];
+        }
+
+        return $this->uniqueRows($extents);
+    }
+
+    /** @param array<int,object> $formats @return array<int,array{relationCode:string,isbn13:string}> */
+    private function relatedProducts(array $formats, string $currentIsbn): array
+    {
+        $currentIsbn = IdentifierNormalizer::preferredIsbn13($currentIsbn) ?? $currentIsbn;
+        $related = [];
+        foreach ($formats as $format) {
+            foreach ($this->formatIsbns($format) as $isbn13) {
+                if ($isbn13 === $currentIsbn) {
+                    continue;
+                }
+                $related[] = ['relationCode' => '06', 'isbn13' => $isbn13];
+            }
+        }
+        return $this->uniqueRows($related);
+    }
+
+    /** @return array{0:?object,1:array<int,object>} */
+    private function formatForBook(object $publication, object $context, string $isbn13): array
+    {
+        $formats = $this->publicationFormats($publication, $context);
+        $target = IdentifierNormalizer::preferredIsbn13($isbn13) ?? $isbn13;
+        foreach ($formats as $format) {
+            if (in_array($target, $this->formatIsbns($format), true)) {
+                return [$format, $formats];
+            }
+        }
+        return [null, $formats];
+    }
+
+    /** @return array<int,object> */
+    private function publicationFormats(object $publication, object $context): array
+    {
+        try {
+            $dao = DAORegistry::getDAO('PublicationFormatDAO');
+            if ($dao && method_exists($dao, 'getByPublicationId')) {
+                $formats = $dao->getByPublicationId((int) $publication->getId(), (int) $context->getId());
+                if (is_array($formats)) {
+                    return array_values($formats);
+                }
+            }
+        } catch (Throwable) {
+        }
+        $embedded = method_exists($publication, 'getData') ? ($publication->getData('publicationFormats') ?? []) : [];
+        return is_array($embedded) ? array_values($embedded) : [];
+    }
+
+    /** @return string[] */
+    private function formatIsbns(object $format): array
+    {
+        if (!method_exists($format, 'getIdentificationCodes')) {
+            return [];
+        }
+        $isbns = [];
+        $codes = $format->getIdentificationCodes();
+        while ($code = $codes->next()) {
+            if (!in_array((string) $code->getCode(), ['15', '03', '24', '02'], true)) {
+                continue;
+            }
+            $isbn13 = IdentifierNormalizer::preferredIsbn13((string) $code->getValue());
+            if ($isbn13 !== null && !in_array($isbn13, $isbns, true)) {
+                $isbns[] = $isbn13;
+            }
+        }
+        return $isbns;
+    }
+
+    /** @param string[] $fields @param string[] $getters */
+    private function positiveIntegerFromFormat(object $format, array $fields, array $getters): ?int
+    {
+        foreach ($getters as $getter) {
+            if (!method_exists($format, $getter)) {
+                continue;
+            }
+            try {
+                $value = $format->{$getter}();
+                if (is_numeric($value) && (int) $value > 0) {
+                    return (int) $value;
+                }
+            } catch (Throwable) {
+            }
+        }
+        if (method_exists($format, 'getData')) {
+            foreach ($fields as $field) {
+                try {
+                    $value = $format->getData($field);
+                } catch (Throwable) {
+                    continue;
+                }
+                if (is_numeric($value) && (int) $value > 0) {
+                    return (int) $value;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** @return string[] */
+    private function metadataValues(object $object, string $field, string $locale): array
+    {
+        $candidates = [];
+        if (method_exists($object, 'getData')) {
+            try {
+                $candidates[] = $object->getData($field, $locale);
+            } catch (Throwable) {
+                try {
+                    $candidates[] = $object->getData($field);
+                } catch (Throwable) {
+                }
+            }
+            try {
+                $candidates[] = $object->getData($field);
+            } catch (Throwable) {
+            }
+        }
+        if (method_exists($object, 'getLocalizedData')) {
+            try {
+                $candidates[] = $object->getLocalizedData($field);
+            } catch (Throwable) {
+            }
+        }
+
+        $values = [];
+        foreach ($candidates as $candidate) {
+            $this->flattenMetadataValue($candidate, $values);
+        }
+        $clean = [];
+        foreach ($values as $value) {
+            $value = $this->cleanText((string) $value);
+            if ($value !== '' && !in_array($value, $clean, true)) {
+                $clean[] = $value;
+            }
+        }
+        return $clean;
+    }
+
+    /** @param string[] $out */
+    private function flattenMetadataValue(mixed $value, array &$out): void
+    {
+        if (is_string($value) || is_numeric($value)) {
+            $out[] = (string) $value;
+            return;
+        }
+        if (!is_array($value)) {
+            return;
+        }
+        if (isset($value['name']) && (is_string($value['name']) || is_numeric($value['name']))) {
+            $out[] = (string) $value['name'];
+            return;
+        }
+        foreach ($value as $item) {
+            $this->flattenMetadataValue($item, $out);
+        }
+    }
+
+    private function firstLocalizedText(object $object, string $field, string $locale): ?string
+    {
+        foreach ($this->metadataValues($object, $field, $locale) as $value) {
+            if ($value !== '') {
+                return $value;
+            }
+        }
+        return null;
+    }
+
+    private function cleanText(string $value): string
+    {
+        $value = preg_replace('/<\s*\/?\s*(?:p|div|br|li|h[1-6])\b[^>]*>/i', ' ', $value) ?? $value;
+        $value = strip_tags($value);
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return trim((string) preg_replace('/\s+/u', ' ', $value));
+    }
+
+    /** @param array<int,array<string,mixed>> $rows @return array<int,array<string,mixed>> */
+    private function uniqueRows(array $rows): array
+    {
+        $unique = [];
+        foreach ($rows as $row) {
+            $key = hash('sha256', json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $unique[$key] = $row;
+        }
+        return array_values($unique);
+    }
+}
+''', encoding='utf-8')
+
+          p = root / 'classes/Feed/FeedManifestService.php'
+          s = p.read_text(encoding='utf-8')
+          s = s.replace(
+              "use APP\\plugins\\generic\\googleBooks\\classes\\Onix\\GoogleOnixValidator;\n",
+              "use APP\\plugins\\generic\\googleBooks\\classes\\Onix\\GoogleOnixValidator;\nuse APP\\plugins\\generic\\googleBooks\\classes\\Onix\\OnixEnrichmentService;\n"
+          )
+          s = s.replace(
+              "    private GoogleBooksStateRepository $repository;\n",
+              "    private GoogleBooksStateRepository $repository;\n    private OnixEnrichmentService $enrichment;\n"
+          )
+          s = s.replace(
+              "        $this->repository = new GoogleBooksStateRepository();\n",
+              "        $this->repository = new GoogleBooksStateRepository();\n        $this->enrichment = new OnixEnrichmentService();\n"
+          )
+          s = s.replace(
+              "            foreach ($this->mapper->mapSubmission($submission, $context, $defaultFree, $defaultWorldwideRights) as $book) {\n                $errors =",
+              "            foreach ($this->mapper->mapSubmission($submission, $context, $defaultFree, $defaultWorldwideRights) as $book) {\n                $book = $this->enrichment->enrich($book, $submission, $context);\n                $errors ="
+          )
+          s = s.replace(
+              "            ) as $book) {\n                if ($this->validator->validateCommercialMetadataBook($book) !== []) {",
+              "            ) as $book) {\n                $book = $this->enrichment->enrich($book, $candidate, $context);\n                if ($this->validator->validateCommercialMetadataBook($book) !== []) {"
+          )
+          p.write_text(s, encoding='utf-8')
+
+          p = root / 'classes/Onix/GoogleOnixBuilder.php'
+          s = p.read_text(encoding='utf-8')
+          marker = "        $xml .= \"      </Language>\\n\";\n        $xml .= \"    </DescriptiveDetail>\\n\";"
+          replacement = "        $xml .= \"      </Language>\\n\";\n\n" \
+              "        foreach ($book->subjects as $subject) {\n" \
+              "            $scheme = trim((string) ($subject['scheme'] ?? ''));\n" \
+              "            $code = trim((string) ($subject['code'] ?? ''));\n" \
+              "            $heading = trim((string) ($subject['heading'] ?? ''));\n" \
+              "            if ($scheme === '' || ($code === '' && $heading === '')) { continue; }\n" \
+              "            $xml .= \"      <Subject>\\n\";\n" \
+              "            $xml .= Xml::element('SubjectSchemeIdentifier', $scheme, 4);\n" \
+              "            if ($code !== '') { $xml .= Xml::element('SubjectCode', $code, 4); }\n" \
+              "            if ($heading !== '') { $xml .= Xml::element('SubjectHeadingText', $heading, 4); }\n" \
+              "            $xml .= \"      </Subject>\\n\";\n" \
+              "        }\n\n" \
+              "        foreach ($book->extents as $extent) {\n" \
+              "            $type = trim((string) ($extent['type'] ?? ''));\n" \
+              "            $value = trim((string) ($extent['value'] ?? ''));\n" \
+              "            $unit = trim((string) ($extent['unit'] ?? ''));\n" \
+              "            if ($type === '' || $value === '' || $unit === '') { continue; }\n" \
+              "            $xml .= \"      <Extent>\\n\";\n" \
+              "            $xml .= Xml::element('ExtentType', $type, 4);\n" \
+              "            $xml .= Xml::element('ExtentValue', $value, 4);\n" \
+              "            $xml .= Xml::element('ExtentUnit', $unit, 4);\n" \
+              "            $xml .= \"      </Extent>\\n\";\n" \
+              "        }\n" \
+              "        $xml .= \"    </DescriptiveDetail>\\n\";"
+          if marker not in s:
+              raise SystemExit('Builder DescriptiveDetail marker not found')
+          s = s.replace(marker, replacement, 1)
+
+          marker = "        $xml .= \"    </PublishingDetail>\\n\";\n\n        if ($includeSupplyDetail) {"
+          replacement = "        $xml .= \"    </PublishingDetail>\\n\";\n\n" \
+              "        $relatedProducts = [];\n" \
+              "        foreach ($book->relatedProducts as $related) {\n" \
+              "            $relatedIsbn = IdentifierNormalizer::preferredIsbn13((string) ($related['isbn13'] ?? ''));\n" \
+              "            $relationCode = trim((string) ($related['relationCode'] ?? '06'));\n" \
+              "            if ($relatedIsbn === null || $relatedIsbn === $isbn13 || !preg_match('/^\\d{2}$/', $relationCode)) { continue; }\n" \
+              "            $relatedProducts[$relationCode . ':' . $relatedIsbn] = [$relationCode, $relatedIsbn];\n" \
+              "        }\n" \
+              "        if ($relatedProducts !== []) {\n" \
+              "            ksort($relatedProducts);\n" \
+              "            $xml .= \"    <RelatedMaterial>\\n\";\n" \
+              "            foreach ($relatedProducts as [$relationCode, $relatedIsbn]) {\n" \
+              "                $xml .= \"      <RelatedProduct>\\n\";\n" \
+              "                $xml .= Xml::element('ProductRelationCode', $relationCode, 4);\n" \
+              "                $xml .= \"        <ProductIdentifier>\\n\";\n" \
+              "                $xml .= Xml::element('ProductIDType', '15', 5);\n" \
+              "                $xml .= Xml::element('IDValue', $relatedIsbn, 5);\n" \
+              "                $xml .= \"        </ProductIdentifier>\\n\";\n" \
+              "                $xml .= \"      </RelatedProduct>\\n\";\n" \
+              "            }\n" \
+              "            $xml .= \"    </RelatedMaterial>\\n\";\n" \
+              "        }\n\n" \
+              "        if ($includeSupplyDetail) {"
+          if marker not in s:
+              raise SystemExit('Builder PublishingDetail marker not found')
+          s = s.replace(marker, replacement, 1)
+          p.write_text(s, encoding='utf-8')
+
+          p = root / 'classes/Onix/GoogleOnixValidator.php'
+          s = p.read_text(encoding='utf-8')
+          marker = "        if ($book->seriesIdentifier !== null && trim((string) $book->seriesTitle) === '') {\n            $errors[] = 'Series title is required when a proprietary series identifier is supplied.';\n        }\n\n        return array_values(array_unique($errors));"
+          replacement = "        if ($book->seriesIdentifier !== null && trim((string) $book->seriesTitle) === '') {\n            $errors[] = 'Series title is required when a proprietary series identifier is supplied.';\n        }\n\n" \
+              "        foreach ($book->subjects as $subject) {\n" \
+              "            $scheme = trim((string) ($subject['scheme'] ?? ''));\n" \
+              "            $code = trim((string) ($subject['code'] ?? ''));\n" \
+              "            $heading = trim((string) ($subject['heading'] ?? ''));\n" \
+              "            if (!preg_match('/^\\d{2}$/', $scheme) || ($code === '' && $heading === '')) { $errors[] = 'Every ONIX Subject must contain a two-digit scheme and either SubjectCode or SubjectHeadingText.'; }\n" \
+              "        }\n" \
+              "        foreach ($book->extents as $extent) {\n" \
+              "            if (!preg_match('/^\\d{2}$/', (string) ($extent['type'] ?? '')) || !preg_match('/^\\d+$/', (string) ($extent['value'] ?? '')) || !preg_match('/^\\d{2}$/', (string) ($extent['unit'] ?? ''))) { $errors[] = 'Every ONIX Extent must contain valid type, numeric value and unit codes.'; }\n" \
+              "        }\n" \
+              "        foreach ($book->relatedProducts as $related) {\n" \
+              "            $relatedIsbn = IdentifierNormalizer::preferredIsbn13((string) ($related['isbn13'] ?? ''));\n" \
+              "            if ($relatedIsbn === null || $relatedIsbn === $book->isbn13 || !preg_match('/^\\d{2}$/', (string) ($related['relationCode'] ?? ''))) { $errors[] = 'Every RelatedProduct must reference a different valid ISBN-13 and a two-digit ProductRelationCode.'; }\n" \
+              "        }\n\n" \
+              "        return array_values(array_unique($errors));"
+          if marker not in s:
+              raise SystemExit('Validator metadata marker not found')
+          s = s.replace(marker, replacement, 1)
+          p.write_text(s, encoding='utf-8')
+
+          p = root / 'tests/run.php'
+          s = p.read_text(encoding='utf-8')
+          marker = "check(str_contains($xml, '<SentDateTime>20260813T163045Z</SentDateTime>'), 'ONIX SentDateTime does not include precise UTC time');"
+          addition = marker + "\n" + r'''$enriched = clone $book;
+$enriched->subjects = [
+    ['scheme' => '10', 'code' => 'SOC000000', 'heading' => null],
+    ['scheme' => '20', 'code' => null, 'heading' => 'culture; education'],
+];
+$enriched->extents = [['type' => '00', 'value' => '240', 'unit' => '03']];
+$enriched->relatedProducts = [['relationCode' => '06', 'isbn13' => '9780131103627']];
+$enrichedXml = $builder->build([$enriched], 'Test Publisher');
+check(str_contains($enrichedXml, '<SubjectSchemeIdentifier>10</SubjectSchemeIdentifier>') && str_contains($enrichedXml, '<SubjectCode>SOC000000</SubjectCode>'), 'BISAC Subject enrichment is missing');
+check(str_contains($enrichedXml, '<SubjectSchemeIdentifier>20</SubjectSchemeIdentifier>') && str_contains($enrichedXml, '<SubjectHeadingText>culture; education</SubjectHeadingText>'), 'Keyword Subject enrichment is missing');
+check(str_contains($enrichedXml, '<ExtentType>00</ExtentType>') && str_contains($enrichedXml, '<ExtentValue>240</ExtentValue>') && str_contains($enrichedXml, '<ExtentUnit>03</ExtentUnit>'), 'Page-count Extent enrichment is missing');
+check(str_contains($enrichedXml, '<RelatedMaterial>') && str_contains($enrichedXml, '<ProductRelationCode>06</ProductRelationCode>') && str_contains($enrichedXml, '<IDValue>9780131103627</IDValue>'), 'RelatedProduct alternative-format ISBN is missing');
+check($validator->validateMetadataBook($enriched) === [], 'Validator rejected valid optional ONIX enrichments');'''
+          if marker not in s:
+              raise SystemExit('run.php enrichment insertion marker not found')
+          s = s.replace(marker, addition, 1)
+          p.write_text(s, encoding='utf-8')
+
+          p = root / 'tests/onix_enrichment_source_smoke.php'
+          p.write_text(r'''<?php
+
+declare(strict_types=1);
+
+$source = file_get_contents(dirname(__DIR__) . '/classes/Onix/OnixEnrichmentService.php');
+$checks = [
+    "['bisac', 'bisacCode', 'bisacCodes']" => 'explicit BISAC source fields',
+    "['thema', 'themaCode', 'themaCodes']" => 'explicit Thema source fields',
+    "['keywords', 'subjects', 'disciplines']" => 'OMP keyword/subject source fields',
+    "'scheme' => '20'" => 'ONIX keyword scheme',
+    "'type' => '00'" => 'main-content extent',
+    "'type' => '03'" => 'front-matter extent',
+    "'type' => '04'" => 'back-matter extent',
+    "'relationCode' => '06'" => 'alternative-format relation',
+    "IdentifierNormalizer::preferredIsbn13" => 'normalized related ISBN validation',
+];
+$failed = [];
+foreach ($checks as $needle => $label) {
+    if (!str_contains($source, $needle)) {
+        $failed[] = $label;
+    }
+}
+if (str_contains($source, 'inferBisac') || str_contains($source, 'guessSubject') || str_contains($source, 'guessPage')) {
+    $failed[] = 'synthetic metadata inference must not be introduced';
+}
+if ($failed) {
+    fwrite(STDERR, "FAILED ONIX enrichment source checks: " . implode(', ', $failed) . "\n");
+    exit(1);
+}
+echo "OK ONIX enrichment source-backed checks\n";
+''', encoding='utf-8')
+
+          p = root / 'tests/run_all.sh'
+          s = p.read_text(encoding='utf-8')
+          s = s.replace("php tests/onix_validation_commercial_smoke.php\n", "php tests/onix_validation_commercial_smoke.php\nphp tests/onix_enrichment_source_smoke.php\n")
+          p.write_text(s, encoding='utf-8')
+
+          p = root / 'tests/package_check_v0124.py'
+          s = p.read_text(encoding='utf-8').replace('0.1.2.7', '0.1.2.8')
+          needle = "'''\n\nneedle = '\\nif failures:\\n'"
+          extra = r'''
+
+# 0.1.2.8 source-backed ONIX enrichment regressions
+book_metadata = (ROOT / 'classes/Model/BookMetadata.php').read_text(encoding='utf-8')
+builder = (ROOT / 'classes/Onix/GoogleOnixBuilder.php').read_text(encoding='utf-8')
+enrichment = (ROOT / 'classes/Onix/OnixEnrichmentService.php').read_text(encoding='utf-8')
+check('public array $subjects = []' in book_metadata and 'public array $extents = []' in book_metadata and 'public array $relatedProducts = []' in book_metadata,
+      'BookMetadata does not carry optional ONIX enrichment fields')
+check('<Subject>' in builder and 'SubjectSchemeIdentifier' in builder and 'SubjectHeadingText' in builder,
+      'ONIX builder does not emit Subject composites')
+check('<Extent>' in builder and 'ExtentType' in builder and 'ExtentValue' in builder and 'ExtentUnit' in builder,
+      'ONIX builder does not emit Extent composites')
+check('<RelatedMaterial>' in builder and 'ProductRelationCode' in builder,
+      'ONIX builder does not emit RelatedProduct composites')
+check("['keywords', 'subjects', 'disciplines']" in enrichment and "'scheme' => '20'" in enrichment,
+      'OMP free-text subjects are not exported truthfully as ONIX keywords')
+check("['bisac', 'bisacCode', 'bisacCodes']" in enrichment and "['thema', 'themaCode', 'themaCodes']" in enrichment,
+      'explicit publisher BISAC/Thema fields are not recognized')
+check("'relationCode' => '06'" in enrichment and 'formatIsbns' in enrichment,
+      'related edition ISBNs are not derived from actual OMP publication formats')
+check('positiveIntegerFromFormat' in enrichment and "'frontMatter'" in enrichment and "'backMatter'" in enrichment,
+      'OMP page/extents metadata is not mapped without guessing')
+check('guessSubject' not in enrichment and 'guessPage' not in enrichment,
+      'ONIX enrichment introduced synthetic metadata inference')
+'''
+          if needle not in s:
+              raise SystemExit('package check insertion point not found')
+          s = s.replace(needle, extra + needle, 1)
+          p.write_text(s, encoding='utf-8')
+
+          p = root / 'version.xml'
+          s = p.read_text(encoding='utf-8').replace('<release>0.1.2.7</release>', '<release>0.1.2.8</release>')
+          p.write_text(s, encoding='utf-8')
+          p = root / 'classes/Api/GoogleBooksApiClient.php'
+          s = p.read_text(encoding='utf-8').replace('GoogleBooksIntegrationForOMP/0.1.2.7', 'GoogleBooksIntegrationForOMP/0.1.2.8')
+          p.write_text(s, encoding='utf-8')
+
+          p = root / 'CHANGELOG.md'
+          s = p.read_text(encoding='utf-8')
+          entry = '''## 0.1.2.8 - 2026-08-27\n\n- Adds source-backed optional ONIX enrichment requested by Google Play Books without inventing metadata.\n- Exports explicit publisher BISAC (`SubjectSchemeIdentifier 10`) and Thema (`93`) codes when those fields are actually present and valid.\n- Exports OMP keywords/subjects/disciplines as ONIX keyword subjects (`SubjectSchemeIdentifier 20`) when no controlled classification is available.\n- Adds truthful `Extent` composites from explicit total-page metadata plus OMP front/back matter counts when available; no PDF page-count guessing is performed.\n- Adds `RelatedProduct` / relation code `06` for real ISBN-bearing alternative publication formats of the same monograph.\n- Reuses a source abstract from another available localized OMP value when the mapped publication-locale summary is empty.\n- Optional enrichments are validated when present but never made ingestion-blocking when the source metadata is absent.\n- Bumps the plugin and Google Books API User-Agent to 0.1.2.8; no database migration.\n\n'''
+          p.write_text(entry + s, encoding='utf-8')
+
+          p = root / 'RELEASE_NOTES_0.1.2.8.md'
+          p.write_text('''# Google Books Integration for OMP 0.1.2.8\n\nThis maintenance release enriches Google ONIX with optional metadata requested during Google Play Books onboarding while preserving the rule that publisher metadata must never be fabricated.\n\n## Enrichment\n\n- Subject: explicit BISAC/Thema codes are exported only from explicit source fields; OMP keywords, subjects and disciplines are exported as ONIX keyword subjects.\n- Extent: explicit total page count and OMP front/back matter values are exported when present. The plugin does not guess PDF pagination.\n- RelatedProduct: other real ISBN-bearing publication formats of the same OMP monograph are linked as alternative formats.\n- Summary: an existing localized abstract can be used as a fallback when the publication-locale abstract is empty.\n\nAll previously validated commercial structures, free-of-charge handling, stable validation URL, complete-document guards and Google crawler transport behavior remain unchanged.\n''', encoding='utf-8')
+
+          (root / '.github/workflows/apply-v0.1.2.8.yml').unlink()
+          PY
+
+      - name: Install validation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php-cli php-sqlite3 php-xml php-mbstring php-curl python3-lxml
+      - name: Validate source
+        run: bash tests/run_all.sh
+      - name: Commit enriched release source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Add source-backed ONIX enrichments for v0.1.2.8'
+          git push origin HEAD:fix/google-onix-enrichment-0.1.2.8
