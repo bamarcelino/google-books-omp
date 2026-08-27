@@ -12,6 +12,7 @@ $checks = [
     "'type' => '03'" => 'front-matter extent',
     "'type' => '04'" => 'back-matter extent',
     "'relationCode' => '06'" => 'alternative-format relation',
+    "canonicalFormatIsbn" => 'canonical alternative-format ISBN selection',
     "IdentifierNormalizer::preferredIsbn13" => 'normalized related ISBN validation',
 ];
 $failed = [];

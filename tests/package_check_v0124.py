@@ -114,8 +114,8 @@ check("['keywords', 'subjects', 'disciplines']" in enrichment and "'scheme' => '
       'OMP free-text subjects are not exported truthfully as ONIX keywords')
 check("['bisac', 'bisacCode', 'bisacCodes']" in enrichment and "['thema', 'themaCode', 'themaCodes']" in enrichment,
       'explicit publisher BISAC/Thema fields are not recognized')
-check("'relationCode' => '06'" in enrichment and 'formatIsbns' in enrichment,
-      'related edition ISBNs are not derived from actual OMP publication formats')
+check("'relationCode' => '06'" in enrichment and 'canonicalFormatIsbn' in enrichment,
+      'related edition ISBNs are not derived from canonical OMP publication formats')
 check('positiveIntegerFromFormat' in enrichment and "'frontMatter'" in enrichment and "'backMatter'" in enrichment,
       'OMP page/extents metadata is not mapped without guessing')
 check('guessSubject' not in enrichment and 'guessPage' not in enrichment,

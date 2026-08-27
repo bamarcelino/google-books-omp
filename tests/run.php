@@ -362,6 +362,7 @@ check(str_contains($enrichedXml, '<SubjectSchemeIdentifier>20</SubjectSchemeIden
 check(str_contains($enrichedXml, '<ExtentType>00</ExtentType>') && str_contains($enrichedXml, '<ExtentValue>240</ExtentValue>') && str_contains($enrichedXml, '<ExtentUnit>03</ExtentUnit>'), 'Page-count Extent enrichment is missing');
 check(str_contains($enrichedXml, '<RelatedMaterial>') && str_contains($enrichedXml, '<ProductRelationCode>06</ProductRelationCode>') && str_contains($enrichedXml, '<IDValue>9780131103627</IDValue>'), 'RelatedProduct alternative-format ISBN is missing');
 check($validator->validateMetadataBook($enriched) === [], 'Validator rejected valid optional ONIX enrichments');
+check($validator->validateXml($enrichedXml) === [], 'XSD/runtime validator rejected enriched ONIX ordering or structure');
 check(str_contains($xml, '<SalesRightsType>02</SalesRightsType>') && str_contains($xml, '<RegionsIncluded>WORLD</RegionsIncluded>'), 'Google rights ONIX is missing SalesRights territory');
 check(str_contains($xml, '<UnpricedItemType>01</UnpricedItemType>') && !str_contains($xml, '<PriceAmount>0'), 'Free book ONIX pricing is not Google-compatible');
 check((bool) preg_match('/<SupplyDetail>.*?<UnpricedItemType>01<\/UnpricedItemType>.*?<\/SupplyDetail>/s', $xml), 'Google free-book UnpricedItemType is not a direct SupplyDetail child');

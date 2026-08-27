@@ -136,18 +136,6 @@ final class GoogleOnixBuilder
         $xml .= Xml::element('LanguageCode', LanguageMapper::toOnix($book->language), 4);
         $xml .= "      </Language>\n";
 
-        foreach ($book->subjects as $subject) {
-            $scheme = trim((string) ($subject['scheme'] ?? ''));
-            $code = trim((string) ($subject['code'] ?? ''));
-            $heading = trim((string) ($subject['heading'] ?? ''));
-            if ($scheme === '' || ($code === '' && $heading === '')) { continue; }
-            $xml .= "      <Subject>\n";
-            $xml .= Xml::element('SubjectSchemeIdentifier', $scheme, 4);
-            if ($code !== '') { $xml .= Xml::element('SubjectCode', $code, 4); }
-            if ($heading !== '') { $xml .= Xml::element('SubjectHeadingText', $heading, 4); }
-            $xml .= "      </Subject>\n";
-        }
-
         foreach ($book->extents as $extent) {
             $type = trim((string) ($extent['type'] ?? ''));
             $value = trim((string) ($extent['value'] ?? ''));
@@ -158,6 +146,18 @@ final class GoogleOnixBuilder
             $xml .= Xml::element('ExtentValue', $value, 4);
             $xml .= Xml::element('ExtentUnit', $unit, 4);
             $xml .= "      </Extent>\n";
+        }
+
+        foreach ($book->subjects as $subject) {
+            $scheme = trim((string) ($subject['scheme'] ?? ''));
+            $code = trim((string) ($subject['code'] ?? ''));
+            $heading = trim((string) ($subject['heading'] ?? ''));
+            if ($scheme === '' || ($code === '' && $heading === '')) { continue; }
+            $xml .= "      <Subject>\n";
+            $xml .= Xml::element('SubjectSchemeIdentifier', $scheme, 4);
+            if ($code !== '') { $xml .= Xml::element('SubjectCode', $code, 4); }
+            if ($heading !== '') { $xml .= Xml::element('SubjectHeadingText', $heading, 4); }
+            $xml .= "      </Subject>\n";
         }
         $xml .= "    </DescriptiveDetail>\n";
 

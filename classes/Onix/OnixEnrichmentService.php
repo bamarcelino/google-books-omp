@@ -121,15 +121,14 @@ final class OnixEnrichmentService
         $currentIsbn = IdentifierNormalizer::preferredIsbn13($currentIsbn) ?? $currentIsbn;
         $related = [];
         foreach ($formats as $format) {
-            foreach ($this->formatIsbns($format) as $isbn13) {
-                if ($isbn13 === $currentIsbn) {
-                    continue;
-                }
-                $related[] = [
-                    'relationCode' => '06', // alternative format
-                    'isbn13' => $isbn13,
-                ];
+            $isbn13 = $this->canonicalFormatIsbn($format);
+            if ($isbn13 === null || $isbn13 === $currentIsbn) {
+                continue;
             }
+            $related[] = [
+                'relationCode' => '06', // alternative format
+                'isbn13' => $isbn13,
+            ];
         }
         return $this->uniqueRows($related);
     }
@@ -183,6 +182,31 @@ final class OnixEnrichmentService
             }
         }
         return $isbns;
+    }
+
+    private function canonicalFormatIsbn(object $format): ?string
+    {
+        if (!method_exists($format, 'getIdentificationCodes')) {
+            return null;
+        }
+        $priorities = ['15' => 10, '03' => 20, '24' => 30, '02' => 40];
+        $byPriority = [];
+        $codes = $format->getIdentificationCodes();
+        while ($code = $codes->next()) {
+            $type = (string) $code->getCode();
+            if (!isset($priorities[$type])) {
+                continue;
+            }
+            $isbn13 = IdentifierNormalizer::preferredIsbn13((string) $code->getValue());
+            if ($isbn13 !== null) {
+                $byPriority[$priorities[$type]] ??= $isbn13;
+            }
+        }
+        if ($byPriority === []) {
+            return null;
+        }
+        ksort($byPriority, SORT_NUMERIC);
+        return reset($byPriority) ?: null;
     }
 
     /** @param string[] $fields @param string[] $getters */
