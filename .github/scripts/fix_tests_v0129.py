@@ -2,6 +2,10 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
+
+# Update legacy assertions in the main regression suite to reflect Google's
+# current profile: editor-only records remain valid OMP metadata, but they are
+# not eligible for the Google Play feed without a real A01 author.
 p = root / 'tests/run.php'
 s = p.read_text(encoding='utf-8')
 
@@ -36,4 +40,20 @@ if old not in s:
     raise SystemExit('Unable to update keyword Subject assertion')
 s = s.replace(old, new, 1)
 
+p.write_text(s, encoding='utf-8')
+
+# The 150-product regression is a transport/completeness test, not a fixture
+# for testing author eligibility. Keep every generated product Google-eligible
+# so the strict profile validator can reach the large-document assertions.
+p = root / 'tests/onix_large_feed_smoke.php'
+s = p.read_text(encoding='utf-8')
+old = """            'role' => ($i % 2 === 0 ? 'A01' : 'B01'),
+            'roles' => [($i % 2 === 0 ? 'A01' : 'B01')],
+"""
+new = """            'role' => 'A01',
+            'roles' => ['A01'],
+"""
+if old not in s:
+    raise SystemExit('Unable to update large-feed A01 fixture')
+s = s.replace(old, new, 1)
 p.write_text(s, encoding='utf-8')
