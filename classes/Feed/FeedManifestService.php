@@ -113,6 +113,9 @@ final class FeedManifestService
         // published OMP products that already have valid SalesRights and supply
         // terms. Content assets are not required for the sample because they are
         // validated and delivered through the separate ebook/content feed.
+        // Compatibility note: validateCommercialMetadataBook() begins with the
+        // same validateMetadataBook($book) checks used by the earlier sample and
+        // then adds Google's commercial-profile requirements.
         $appendEligibleProducts = function (object $candidate) use (
             &$books,
             $context,
