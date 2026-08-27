@@ -13,22 +13,22 @@ source = source_path.read_text(encoding='utf-8')
 # packages can still be inspected with this maintenance wrapper.
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.3 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.8 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.9 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.3', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.8', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.9', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.8')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.9')
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.5 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.8 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.9 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.5', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.8', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.9', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.8')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.9')
 
 extra = r'''
 # 0.1.2.4+ live-onboarding regressions
@@ -74,7 +74,7 @@ check("'de' => 'deu'" in language_mapper and "'fr' => 'fra'" in language_mapper
       and "'nl' => 'nld'" in language_mapper and "'gn' => 'grn'" in language_mapper,
       'canonical ONIX ISO 639-2 language mappings are missing')
 
-# 0.1.2.8 Google commercial-validation regressions
+# 0.1.2.9 Google commercial-validation regressions
 validator = (ROOT / 'classes/Onix/GoogleOnixValidator.php').read_text(encoding='utf-8')
 check('validateCommercialMetadataBook' in validator and 'validateCommercialTerms' in validator,
       'Google validation sample does not validate commercial metadata without requiring content assets')
@@ -98,7 +98,7 @@ if commercial_test_path.is_file():
           'free validation products are not tested as UnpricedItemType 01')
 
 
-# 0.1.2.8 source-backed ONIX enrichment regressions
+# 0.1.2.9 source-backed ONIX enrichment regressions
 book_metadata = (ROOT / 'classes/Model/BookMetadata.php').read_text(encoding='utf-8')
 builder = (ROOT / 'classes/Onix/GoogleOnixBuilder.php').read_text(encoding='utf-8')
 enrichment = (ROOT / 'classes/Onix/OnixEnrichmentService.php').read_text(encoding='utf-8')
@@ -110,16 +110,26 @@ check('<Extent>' in builder and 'ExtentType' in builder and 'ExtentValue' in bui
       'ONIX builder does not emit Extent composites')
 check('<RelatedMaterial>' in builder and 'ProductRelationCode' in builder,
       'ONIX builder does not emit RelatedProduct composites')
-check("['keywords', 'subjects', 'disciplines']" in enrichment and "'scheme' => '20'" in enrichment,
-      'OMP free-text subjects are not exported truthfully as ONIX keywords')
-check("['bisac', 'bisacCode', 'bisacCodes']" in enrichment and "['thema', 'themaCode', 'themaCodes']" in enrichment,
-      'explicit publisher BISAC/Thema fields are not recognized')
+check("['bisac', 'bisacCode', 'bisacCodes']" in enrichment and "'scheme' => '10'" in enrichment,
+      'explicit publisher BISAC fields are not recognized')
+check("'scheme' => '20'" not in enrichment and "['keywords', 'subjects', 'disciplines']" not in enrichment and "['thema', 'themaCode', 'themaCodes']" not in enrichment,
+      'unsupported/free-text Google subject export is still present')
 check("'relationCode' => '06'" in enrichment and 'canonicalFormatIsbn' in enrichment,
       'related edition ISBNs are not derived from canonical OMP publication formats')
 check('positiveIntegerFromFormat' in enrichment and "'frontMatter'" in enrichment and "'backMatter'" in enrichment,
       'OMP page/extents metadata is not mapped without guessing')
 check('guessSubject' not in enrichment and 'guessPage' not in enrichment,
       'ONIX enrichment introduced synthetic metadata inference')
+
+# 0.1.2.9 strict Google Play profile regressions
+check('ContributorRole A01 is required for Google Play Books' in validator,
+      'Google profile validator does not require an A01 author')
+check('GOOGLE_SUBJECT_SCHEMES' in validator and "'10'" in validator and "'78'" in validator,
+      'Google-supported subject scheme whitelist is missing')
+check('must contain SubjectCode' in validator,
+      'Google profile validator does not require SubjectCode when Subject is present')
+google_profile_test = (ROOT / 'tests' / 'onix_google_profile_smoke.php')
+check(google_profile_test.is_file(), 'strict Google profile regression test is missing')
 '''
 
 needle = '\nif failures:\n'

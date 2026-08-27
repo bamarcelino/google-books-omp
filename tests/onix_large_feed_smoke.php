@@ -44,8 +44,8 @@ for ($i = 1; $i <= 150; $i++) {
         'Large catalogue regression title ' . $i,
         null,
         [[
-            'role' => ($i % 2 === 0 ? 'A01' : 'B01'),
-            'roles' => [($i % 2 === 0 ? 'A01' : 'B01')],
+            'role' => 'A01',
+            'roles' => ['A01'],
             'name' => 'Contributor ' . $i,
             'orcid' => null,
         ]],

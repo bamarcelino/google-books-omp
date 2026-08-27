@@ -152,7 +152,7 @@ final class GoogleOnixBuilder
             $scheme = trim((string) ($subject['scheme'] ?? ''));
             $code = trim((string) ($subject['code'] ?? ''));
             $heading = trim((string) ($subject['heading'] ?? ''));
-            if ($scheme === '' || ($code === '' && $heading === '')) { continue; }
+            if ($scheme === '' || $code === '') { continue; }
             $xml .= "      <Subject>\n";
             $xml .= Xml::element('SubjectSchemeIdentifier', $scheme, 4);
             if ($code !== '') { $xml .= Xml::element('SubjectCode', $code, 4); }

@@ -137,7 +137,7 @@ final class DashboardHandler extends \APP\handler\Handler
         // Cache-bust dashboard assets on every plugin release. OMP installations
         // are frequently upgraded in-place and browsers/CDNs may otherwise keep
         // the previous dashboard.js under the unchanged plugin path.
-        $assetVersion = '0.1.2.3';
+        $assetVersion = '0.1.2.9';
         $dashboardCssUrl = $assetBase . '/styles/dashboard.css?v=' . rawurlencode($assetVersion);
         $dashboardJsUrl = $assetBase . '/scripts/dashboard.js?v=' . rawurlencode($assetVersion);
         $templateMgr->addStyleSheet(

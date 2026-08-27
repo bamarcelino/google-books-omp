@@ -9,6 +9,12 @@ use APP\plugins\generic\googleBooks\classes\Util\IdentifierNormalizer;
 
 final class GoogleOnixValidator
 {
+    /** Subject schemes accepted by the current Google Play Books ONIX profile. */
+    private const GOOGLE_SUBJECT_SCHEMES = [
+        '01', '03', '04', '09', '10', '23', '24', '26', '29',
+        '33', '40', '53', '54', '55', '56', '57', '78',
+    ];
+
     /**
      * Validate bibliographic metadata required by Google's ONIX ingestion
      * profile. This intentionally does not require an EPUB/PDF asset or sales
@@ -42,6 +48,7 @@ final class GoogleOnixValidator
         if ($book->contributors === []) {
             $errors[] = 'At least one contributor is required.';
         }
+        $hasGooglePlayAuthor = false;
         foreach ($book->contributors as $contributor) {
             if (trim((string) ($contributor['name'] ?? '')) === '') {
                 $errors[] = 'Contributor names cannot be empty.';
@@ -51,6 +58,9 @@ final class GoogleOnixValidator
                 $errors[] = 'Every contributor must contain exactly one three-character ONIX ContributorRole for Google Play Books.';
             }
             foreach ($roles as $role) {
+                if ($role === 'A01') {
+                    $hasGooglePlayAuthor = true;
+                }
                 if (!preg_match('/^[A-Z][0-9]{2}$/', $role)) {
                     $errors[] = 'Every contributor role must be a three-character ONIX ContributorRole.';
                 }
@@ -58,6 +68,9 @@ final class GoogleOnixValidator
             if (!empty($contributor['orcid']) && IdentifierNormalizer::normalizeOrcid((string) $contributor['orcid']) === null) {
                 $errors[] = 'Contributor ORCID is invalid.';
             }
+        }
+        if (!$hasGooglePlayAuthor) {
+            $errors[] = 'At least one contributor with ContributorRole A01 is required for Google Play Books.';
         }
 
         if ($book->seriesIssn !== null && IdentifierNormalizer::normalizeIssn($book->seriesIssn) === null) {
@@ -78,9 +91,18 @@ final class GoogleOnixValidator
 
         foreach ($book->subjects as $subject) {
             $scheme = trim((string) ($subject['scheme'] ?? ''));
-            $code = trim((string) ($subject['code'] ?? ''));
-            $heading = trim((string) ($subject['heading'] ?? ''));
-            if (!preg_match('/^\d{2}$/', $scheme) || ($code === '' && $heading === '')) { $errors[] = 'Every ONIX Subject must contain a two-digit scheme and either SubjectCode or SubjectHeadingText.'; }
+            $code = strtoupper(trim((string) ($subject['code'] ?? '')));
+            if (!in_array($scheme, self::GOOGLE_SUBJECT_SCHEMES, true)) {
+                $errors[] = 'Every ONIX Subject sent to Google Play Books must use a supported SubjectSchemeIdentifier.';
+                continue;
+            }
+            if ($code === '') {
+                $errors[] = 'Every ONIX Subject sent to Google Play Books must contain SubjectCode.';
+                continue;
+            }
+            if ($scheme === '10' && !preg_match('/^[A-Z]{3}[0-9]{6}$/', $code)) {
+                $errors[] = 'BISAC SubjectCode must contain three letters followed by six digits.';
+            }
         }
         foreach ($book->extents as $extent) {
             if (!preg_match('/^\d{2}$/', (string) ($extent['type'] ?? '')) || !preg_match('/^\d+$/', (string) ($extent['value'] ?? '')) || !preg_match('/^\d{2}$/', (string) ($extent['unit'] ?? ''))) { $errors[] = 'Every ONIX Extent must contain valid type, numeric value and unit codes.'; }
@@ -337,6 +359,26 @@ final class GoogleOnixValidator
                         if ($xpath->query('./onix:ContributorRole', $contributorNode)->length !== 1) {
                             $errors[] = 'Google Play Books profile requires exactly one ContributorRole in each Contributor composite.';
                             break;
+                        }
+                    }
+                    foreach ($xpath->query('/onix:ONIXMessage/onix:Product') ?: [] as $productNode) {
+                        $record = trim((string) $xpath->evaluate('string(./onix:RecordReference)', $productNode));
+                        $label = $record !== '' ? $record : 'unknown product';
+                        if ($xpath->query('./onix:DescriptiveDetail/onix:Contributor[onix:ContributorRole="A01"]', $productNode)->length === 0) {
+                            $errors[] = $label . ': Google Play Books requires at least one A01 author.';
+                        }
+                        foreach ($xpath->query('./onix:DescriptiveDetail/onix:Subject', $productNode) ?: [] as $subjectNode) {
+                            $scheme = trim((string) $xpath->evaluate('string(./onix:SubjectSchemeIdentifier)', $subjectNode));
+                            $code = trim((string) $xpath->evaluate('string(./onix:SubjectCode)', $subjectNode));
+                            if (!in_array($scheme, self::GOOGLE_SUBJECT_SCHEMES, true)) {
+                                $errors[] = $label . ': unsupported Google Play SubjectSchemeIdentifier ' . ($scheme !== '' ? $scheme : '(missing)') . '.';
+                            }
+                            if ($code === '') {
+                                $errors[] = $label . ': every Google Play Subject composite requires SubjectCode.';
+                            }
+                            if ($scheme === '10' && $code !== '' && !preg_match('/^[A-Z]{3}[0-9]{6}$/', strtoupper($code))) {
+                                $errors[] = $label . ': invalid BISAC SubjectCode.';
+                            }
                         }
                     }
                     $xsdPath = $this->ompOnixSchemaPath();

@@ -274,7 +274,7 @@ check(in_array('ISBN-10 does not correspond to the ISBN-13 product identifier.',
 
 $editedVolume = clone $book;
 $editedVolume->contributors = [['role' => 'B01', 'roles' => ['B01'], 'name' => 'Volume Editor', 'orcid' => null]];
-check($validator->validateBook($editedVolume) === [], 'Validator rejected an editor-only book with one primary B01 role');
+check(in_array('At least one contributor with ContributorRole A01 is required for Google Play Books.', $validator->validateBook($editedVolume), true), 'Validator accepted an editor-only Google Play book without an A01 author');
 $editedVolumeLegacyMultiRole = clone $book;
 $editedVolumeLegacyMultiRole->contributors = [['role' => 'B01', 'roles' => ['B01', 'A01'], 'name' => 'Volume Editor', 'orcid' => null]];
 check(in_array('Every contributor must contain exactly one three-character ONIX ContributorRole for Google Play Books.', $validator->validateBook($editedVolumeLegacyMultiRole), true), 'Google single ContributorRole profile was not enforced');
@@ -352,13 +352,12 @@ check(str_contains($xml, '<SentDateTime>20260813T163045Z</SentDateTime>'), 'ONIX
 $enriched = clone $book;
 $enriched->subjects = [
     ['scheme' => '10', 'code' => 'SOC000000', 'heading' => null],
-    ['scheme' => '20', 'code' => null, 'heading' => 'culture; education'],
 ];
 $enriched->extents = [['type' => '00', 'value' => '240', 'unit' => '03']];
 $enriched->relatedProducts = [['relationCode' => '06', 'isbn13' => '9780131103627']];
 $enrichedXml = $builder->build([$enriched], 'Test Publisher');
 check(str_contains($enrichedXml, '<SubjectSchemeIdentifier>10</SubjectSchemeIdentifier>') && str_contains($enrichedXml, '<SubjectCode>SOC000000</SubjectCode>'), 'BISAC Subject enrichment is missing');
-check(str_contains($enrichedXml, '<SubjectSchemeIdentifier>20</SubjectSchemeIdentifier>') && str_contains($enrichedXml, '<SubjectHeadingText>culture; education</SubjectHeadingText>'), 'Keyword Subject enrichment is missing');
+check(!str_contains($enrichedXml, '<SubjectSchemeIdentifier>20</SubjectSchemeIdentifier>') && !str_contains($enrichedXml, '<SubjectHeadingText>culture; education</SubjectHeadingText>'), 'Unsupported free-text Subject enrichment was emitted');
 check(str_contains($enrichedXml, '<ExtentType>00</ExtentType>') && str_contains($enrichedXml, '<ExtentValue>240</ExtentValue>') && str_contains($enrichedXml, '<ExtentUnit>03</ExtentUnit>'), 'Page-count Extent enrichment is missing');
 check(str_contains($enrichedXml, '<RelatedMaterial>') && str_contains($enrichedXml, '<ProductRelationCode>06</ProductRelationCode>') && str_contains($enrichedXml, '<IDValue>9780131103627</IDValue>'), 'RelatedProduct alternative-format ISBN is missing');
 check($validator->validateMetadataBook($enriched) === [], 'Validator rejected valid optional ONIX enrichments');
