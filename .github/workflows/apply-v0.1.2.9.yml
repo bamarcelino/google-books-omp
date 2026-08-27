@@ -52,3 +52,5 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m 'Align ONIX with strict Google Play profile v0.1.2.9'
           git push origin HEAD:fix/google-play-profile-0.1.2.9
+
+# Retry after aligning the 150-product completeness fixture with Google Play A01 eligibility.
