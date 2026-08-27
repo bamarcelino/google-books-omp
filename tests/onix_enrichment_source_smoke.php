@@ -5,9 +5,6 @@ declare(strict_types=1);
 $source = file_get_contents(dirname(__DIR__) . '/classes/Onix/OnixEnrichmentService.php');
 $checks = [
     "['bisac', 'bisacCode', 'bisacCodes']" => 'explicit BISAC source fields',
-    "['thema', 'themaCode', 'themaCodes']" => 'explicit Thema source fields',
-    "['keywords', 'subjects', 'disciplines']" => 'OMP keyword/subject source fields',
-    "'scheme' => '20'" => 'ONIX keyword scheme',
     "'type' => '00'" => 'main-content extent',
     "'type' => '03'" => 'front-matter extent',
     "'type' => '04'" => 'back-matter extent',
@@ -20,6 +17,9 @@ foreach ($checks as $needle => $label) {
     if (!str_contains($source, $needle)) {
         $failed[] = $label;
     }
+}
+if (str_contains($source, "'scheme' => '20'") || str_contains($source, "['thema', 'themaCode', 'themaCodes']") || str_contains($source, "['keywords', 'subjects', 'disciplines']")) {
+    $failed[] = 'unsupported/free-text subject export must not be introduced';
 }
 if (str_contains($source, 'inferBisac') || str_contains($source, 'guessSubject') || str_contains($source, 'guessPage')) {
     $failed[] = 'synthetic metadata inference must not be introduced';

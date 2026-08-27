@@ -9,6 +9,13 @@
 - Optional enrichments are validated when present but never made ingestion-blocking when the source metadata is absent.
 - Bumps the plugin and Google Books API User-Agent to 0.1.2.8; no database migration.
 
+
+## 0.1.2.9 - 2026-08-27
+
+- Align Google Play eligibility with the required A01 author role.
+- Emit only coded, Google-supported ONIX subjects; do not convert free-text OMP keywords to scheme 20.
+- Add strict Google-profile regression checks while preserving commercial feed fixes and source-backed optional enrichments.
+
 ## 0.1.2.5 - 2026-08-26
 
 - Implements Google Play Books validation feedback requiring exactly one `ContributorRole` per `Contributor` composite.

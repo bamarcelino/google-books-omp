@@ -49,41 +49,18 @@ final class OnixEnrichmentService
     {
         $subjects = [];
 
-        // Standard schemes are exported only from explicit fields. Never infer
-        // BISAC or Thema from a title, abstract or free-text keyword.
-        foreach ([
-            ['scheme' => '10', 'fields' => ['bisac', 'bisacCode', 'bisacCodes'], 'pattern' => '/^[A-Z]{3}[0-9]{6}$/'],
-            ['scheme' => '93', 'fields' => ['thema', 'themaCode', 'themaCodes'], 'pattern' => '/^[A-Z][A-Z0-9]{0,6}$/'],
-        ] as $definition) {
-            foreach ($definition['fields'] as $field) {
-                foreach ($this->metadataValues($publication, $field, $locale) as $value) {
-                    $code = strtoupper(preg_replace('/\s+/', '', $value) ?? $value);
-                    if (!preg_match($definition['pattern'], $code)) {
-                        continue;
-                    }
-                    $subjects[] = ['scheme' => $definition['scheme'], 'code' => $code, 'heading' => null];
-                }
-            }
-        }
-
-        // OMP standard subject-like fields are free text. ONIX Subject Scheme
-        // 20 is the truthful representation when no controlled vocabulary was
-        // explicitly stored by the publisher.
-        $keywords = [];
-        foreach (['keywords', 'subjects', 'disciplines'] as $field) {
+        // Google Play requires SubjectCode whenever Subject is present. OMP's
+        // normal keywords/subjects/disciplines are free text, not controlled
+        // category codes, so they must not be repackaged as a Google Subject.
+        // Export only explicit BISAC fields whose value is structurally valid.
+        foreach (['bisac', 'bisacCode', 'bisacCodes'] as $field) {
             foreach ($this->metadataValues($publication, $field, $locale) as $value) {
-                $value = $this->cleanText($value);
-                if ($value !== '' && !in_array($value, $keywords, true)) {
-                    $keywords[] = $value;
+                $code = strtoupper(preg_replace('/\s+/', '', $value) ?? $value);
+                if (!preg_match('/^[A-Z]{3}[0-9]{6}$/', $code)) {
+                    continue;
                 }
+                $subjects[] = ['scheme' => '10', 'code' => $code, 'heading' => null];
             }
-        }
-        if ($keywords !== []) {
-            $subjects[] = [
-                'scheme' => '20',
-                'code' => null,
-                'heading' => implode('; ', $keywords),
-            ];
         }
 
         return $this->uniqueRows($subjects);

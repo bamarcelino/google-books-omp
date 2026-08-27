@@ -8,6 +8,7 @@ find . -type f -name '*.php' -print0 | sort -z | xargs -0 -n1 php -l >/dev/null
 php tests/run.php
 php tests/onix_large_feed_smoke.php
 php tests/onix_validation_commercial_smoke.php
+php tests/onix_google_profile_smoke.php
 php tests/onix_enrichment_source_smoke.php
 php tests/repository_smoke.php
 php tests/mapper_smoke.php

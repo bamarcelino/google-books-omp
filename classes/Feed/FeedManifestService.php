@@ -169,7 +169,7 @@ final class FeedManifestService
 
         if (count($books) < self::VALIDATION_TARGET_COUNT) {
             throw new RuntimeException(sprintf(
-                'Google Play Books validation requires at least %d real products with valid ISBN, bibliographic metadata, SalesRights and supply terms; only %d eligible product(s) were found.',
+                'Google Play Books validation requires at least %d real products with valid ISBN, at least one A01 author, bibliographic metadata, SalesRights and supply terms; only %d eligible product(s) were found.',
                 self::VALIDATION_TARGET_COUNT,
                 count($books),
             ));
