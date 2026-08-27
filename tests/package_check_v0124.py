@@ -13,22 +13,22 @@ source = source_path.read_text(encoding='utf-8')
 # packages can still be inspected with this maintenance wrapper.
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.3 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.6 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.7 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.3', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.6', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.7', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.6')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.7')
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.5 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.6 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.7 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.5', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.6', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.7', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.6')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.7')
 
 extra = r'''
 # 0.1.2.4+ live-onboarding regressions
@@ -36,18 +36,18 @@ check("return (bool) $this->plugin->getSetting($contextId, 'feedEnabled');" in f
       'HTTP feed is not controlled independently by feedEnabled')
 check('DeliveryConfig::mode(' not in feed,
       'HTTP feed is incorrectly coupled to the selected push/staging delivery mode')
-feed_manifest_v0126 = (ROOT / 'classes/Feed/FeedManifestService.php').read_text(encoding='utf-8')
-check('VALIDATION_TARGET_COUNT = 10' in feed_manifest_v0126,
+feed_manifest = (ROOT / 'classes/Feed/FeedManifestService.php').read_text(encoding='utf-8')
+check('VALIDATION_TARGET_COUNT = 10' in feed_manifest,
       'validation sample target is not 10 real products')
-check('filterByStatus([Submission::STATUS_PUBLISHED])' in feed_manifest_v0126
-      and 'validateMetadataBook' in feed_manifest_v0126,
-      'validation sample does not supplement from real published metadata-valid OMP products')
-check('new BookMetadata(' not in feed_manifest_v0126,
+check('filterByStatus([Submission::STATUS_PUBLISHED])' in feed_manifest
+      and 'validateCommercialMetadataBook' in feed_manifest,
+      'validation sample does not supplement from real published commercially valid OMP products')
+check('new BookMetadata(' not in feed_manifest,
       'validation sample fabricates synthetic BookMetadata products')
-check('array_values($books)' in feed_manifest_v0126,
+check('array_values($books)' in feed_manifest,
       'validation sample does not emit the collected real product set')
 
-# 0.1.2.6 Google final-verification regressions
+# 0.1.2.6 final-verification regressions
 check("VALIDATION_FILENAME = 'googlebooksvalidation.xml'" in feed,
       'validation sample does not expose one permanent canonical filename')
 check('googlebooksvalidation[0-9]+' in feed and 'isValidationFilename' in feed,
@@ -58,10 +58,10 @@ check("header('Content-Length: ' . strlen($xml))" in feed,
       'ONIX HTTP response does not advertise its exact byte length')
 check('no-transform' in feed and 'zlib.output_compression' in feed,
       'ONIX response does not guard against intermediary/PHP transformations')
-check('assertDeliverableXml' in feed_manifest_v0126 and 'validateXml($xml)' in feed_manifest_v0126,
+check('assertDeliverableXml' in feed_manifest and 'validateXml($xml)' in feed_manifest,
       'generated ONIX is not structurally validated before HTTP delivery')
-check("substr_count($xml, '<Product>')" in feed_manifest_v0126
-      and "substr_count($xml, '</Product>')" in feed_manifest_v0126,
+check("substr_count($xml, '<Product>')" in feed_manifest
+      and "substr_count($xml, '</Product>')" in feed_manifest,
       'pre-delivery ONIX validation does not verify balanced product counts')
 large_feed_test = (ROOT / 'tests' / 'onix_large_feed_smoke.php').read_text(encoding='utf-8')
 check('<= 150' in large_feed_test and "substr_count($xml, '<Product>') === 150" in large_feed_test,
@@ -73,6 +73,29 @@ language_mapper = (ROOT / 'classes/Util/LanguageMapper.php').read_text(encoding=
 check("'de' => 'deu'" in language_mapper and "'fr' => 'fra'" in language_mapper
       and "'nl' => 'nld'" in language_mapper and "'gn' => 'grn'" in language_mapper,
       'canonical ONIX ISO 639-2 language mappings are missing')
+
+# 0.1.2.7 Google commercial-validation regressions
+validator = (ROOT / 'classes/Onix/GoogleOnixValidator.php').read_text(encoding='utf-8')
+check('validateCommercialMetadataBook' in validator and 'validateCommercialTerms' in validator,
+      'Google validation sample does not validate commercial metadata without requiring content assets')
+check('validateCommercialXml' in validator and 'missing ProductSupply' in validator and 'missing SalesRights' in validator,
+      'Google commercial XML profile validator is missing')
+check("$this->validator->validateCommercialXml($xml)" in feed_manifest,
+      'commercial ONIX is not profile-validated before delivery')
+check("'validation-commercial'" in feed_manifest and 'self::VALIDATION_TARGET_COUNT' in feed_manifest,
+      'validation sample does not enforce exactly ten commercially complete products')
+check("$this->sentAt($contextId),\n            true," in feed_manifest,
+      'validation sample is still built without SalesRights/ProductSupply')
+commercial_test_path = ROOT / 'tests' / 'onix_validation_commercial_smoke.php'
+check(commercial_test_path.is_file(), 'commercial validation regression test is missing')
+if commercial_test_path.is_file():
+    commercial_test = commercial_test_path.read_text(encoding='utf-8')
+    check("substr_count($xml, '<SalesRights>') === 10" in commercial_test,
+          'ten-record validation test does not require SalesRights on every Product')
+    check("substr_count($xml, '<ProductSupply>') === 10" in commercial_test,
+          'ten-record validation test does not require ProductSupply on every Product')
+    check("substr_count($xml, '<UnpricedItemType>01</UnpricedItemType>') === 10" in commercial_test,
+          'free validation products are not tested as UnpricedItemType 01')
 '''
 
 needle = '\nif failures:\n'
