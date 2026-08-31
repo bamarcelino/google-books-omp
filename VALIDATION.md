@@ -1,4 +1,4 @@
-# Google Books Integration for OMP 0.1.2.10 - Validation Report
+# Google Books Integration for OMP 0.1.2.11 - Validation Report
 
 **Target:** Open Monograph Press 3.5.x, validated against OMP/PKP 3.5.0-5 public contracts  
 **Author:** Bruno Cesar Alves Marcelino  
@@ -7,7 +7,7 @@
 
 ## Scope
 
-Release 0.1.2.10 retains the 0.1.2.x transport-neutral delivery layer, encrypted API/transport secrets, dashboard repairs and strict Google ONIX validation. It adds an export-only compatibility rule for organized volumes: when no `A01` author exists, every OMP volume editor/editor is emitted as a single-role `A01` contributor without changing the OMP source metadata. Existing mixed author/editor records preserve their roles.
+Release 0.1.2.11 retains the transport-neutral delivery layer, encrypted API/transport secrets, strict Google ONIX validation and organized-volume `A01` compatibility. It replaces the public technical identifier line with branded Books/Play actions and stores Google Play availability only when the Books API returns an exact ISBN match with a safe `saleInfo.buyLink`, an e-book flag and an eligible storefront state.
 
 Validation covers plugin code, OMP-facing contracts, identifier normalization, Google Books discovery behavior, ONIX generation, delivery-manifest generation, reversible outbound-secret protection, database state, transport configuration, localization, queue integration and distribution archives. It does not claim that Google has accepted a real publisher feed or credentials; Google-side onboarding remains external.
 
@@ -113,7 +113,7 @@ Delivery-manifest tests additionally verify the expected `onix/validate`, `<COLL
 
 ## Public OMP book page
 
-Exact, unambiguous Google Volume IDs remain eligible for the public Google Books link. OMP 3.5.0-5 invokes `Templates::Catalog::Book::Details` after its publication-format identifiers/DOI block, and the plugin retains `Hook::SEQUENCE_CORE` so the Google Books identifier appears before the normal citation widget without a core template override.
+Exact, unambiguous Google Volume IDs remain eligible for the public Google Books action. The public template no longer exposes the repeated ISBN or internal Volume ID. A separate Google Play Books action is rendered only for an API-confirmed e-book with a safe acquisition URL and eligible `saleability`. OMP 3.5.0-5 invokes `Templates::Catalog::Book::Details` after its publication-format identifiers/DOI block, and the plugin retains `Hook::SEQUENCE_CORE` so the action block appears before the normal citation widget without a core template override. A scoped, versioned frontend stylesheet provides responsive buttons, keyboard focus and decorative inline vector icons.
 
 ## Dashboard, localization and publisher neutrality
 
@@ -124,7 +124,7 @@ The 0.1.2.x dashboard provides four primary tabs:
 3. Delivery and files;
 4. Catalogue.
 
-English, Spanish and Brazilian Portuguese catalogues each contain **229** Google Books locale keys with identical key sets. Distribution-source checks reject hardcoded known deployment domains, known real collection codes and plaintext secrets. Documentation/examples use generic values such as `AB12C34`.
+English, Spanish and Brazilian Portuguese catalogues each contain **230** Google Books locale keys with identical key sets. Distribution-source checks reject hardcoded known deployment domains, known real collection codes and plaintext secrets. Documentation/examples use generic values such as `AB12C34`.
 
 ## Repository CI hardening
 

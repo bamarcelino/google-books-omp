@@ -126,6 +126,11 @@ $transport = static function (string $url, array $query) use (&$requests): array
                 'infoLink' => 'https://books.google.test/info',
                 'previewLink' => 'https://books.google.test/preview',
             ],
+            'saleInfo' => [
+                'saleability' => 'FREE',
+                'isEbook' => true,
+                'buyLink' => 'https://books.google.test/buy',
+            ],
         ]],
     ];
 };
@@ -134,6 +139,7 @@ $match = $client->findByIsbn('978.0.306.40615.7');
 check($match->found === true, 'Google Books exact ISBN discovery failed');
 check($match->volumeId === 'volume123', 'Google Books Volume ID was not captured');
 check($match->infoLink === 'https://books.google.test/info', 'Safe Google Books info URL was not captured');
+check($match->buyLink === 'https://books.google.test/buy' && $match->saleability === 'FREE' && $match->isEbook === true, 'Google Play Books availability was not captured');
 check(isset($requests[0][1]['q']) && $requests[0][1]['q'] === 'isbn:9780306406157', 'Google Books ISBN query was not canonicalized');
 check(($requests[0][1]['key'] ?? null) === 'apiKey', 'Google Books API key was not propagated');
 check(!isset($requests[0][1]['partner']), 'Primary Google discovery query was incorrectly restricted to one partner catalogue');
@@ -592,9 +598,11 @@ check(str_contains($mapperSource, 'mapDiscoverySubmission') && str_contains($map
 check(str_contains($mapperSource, "DAORegistry::getDAO('PublicationFormatDAO')") && str_contains($mapperSource, 'getByPublicationId'), 'Mapper does not load OMP 3.5 publication formats from PublicationFormatDAO.');
 check(str_contains($mapperSource, "'24' => 30") && str_contains($mapperSource, 'getFormatDiscoveryIsbns13'), 'Mapper does not recognize co-publisher ISBN-13 (ONIX code 24) during discovery.');
 check(str_contains($pluginSource, 'SubmissionDiscoveryJob::dispatchAfterResponse') && str_contains($pluginSource, 'canAutoDiscover'), 'Published metadata changes do not trigger independent API discovery.');
-check(str_contains($pluginSource, "'volumeId' => (string) \$record->google_volume_id"), 'Public book details do not receive the discovered Google Volume ID.');
+check(str_contains($pluginSource, "'booksUrl' => \$url") && str_contains($pluginSource, "'playUrl' => \$this->publicGooglePlayUrl(\$record)"), 'Public book details do not receive the Google Books and optional Google Play links.');
 $publicIdentifierTemplate = file_get_contents(dirname(__DIR__) . '/templates/publicIdentifier.tpl');
-check(str_contains($publicIdentifierTemplate, 'Google Volume ID') && str_contains($publicIdentifierTemplate, 'isbn13'), 'Public Google Books identifier block does not display the discovered Volume ID and ISBN.');
+check(!str_contains($publicIdentifierTemplate, 'Google Volume ID') && !str_contains($publicIdentifierTemplate, 'isbn13'), 'Public Google Books block still exposes technical ISBN or Volume ID metadata.');
+check(str_contains($publicIdentifierTemplate, 'viewOnGoogleBooks') && str_contains($publicIdentifierTemplate, 'viewOnGooglePlay') && str_contains($publicIdentifierTemplate, '<svg'), 'Public Google Books block does not provide branded Books and optional Play actions.');
+check(str_contains($pluginSource, "['FREE', 'FOR_SALE', 'FOR_PREORDER', 'FOR_RENTAL_ONLY', 'FOR_SALE_AND_RENTAL']") && str_contains($pluginSource, 'google_buy_link'), 'Google Play link is not restricted to API-confirmed e-book storefront availability.');
 check(str_contains($dashboardSource, 'persistApiSettings') && str_contains($dashboardSource, 'persistFeedSettings') && str_contains($dashboardSource, 'persistBehaviorSettings'), 'Legacy combined Save endpoint does not preserve all settings after an in-place upgrade.');
 
 $migrationSource = file_get_contents(dirname(__DIR__) . '/classes/Migration/GoogleBooksSchemaMigration.php');

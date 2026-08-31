@@ -186,6 +186,9 @@ msgstr "Google Books"
 msgid "plugins.generic.googleBooks.viewOnGoogleBooks"
 msgstr "Ver en Google Books"
 
+msgid "plugins.generic.googleBooks.viewOnGooglePlay"
+msgstr "Ver en Google Play Libros"
+
 msgid "plugins.generic.googleBooks.message.settingsSaved"
 msgstr "La configuración de Google Books se ha guardado."
 

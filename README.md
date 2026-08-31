@@ -1,5 +1,11 @@
 # Google Books Integration for OMP
 
+### 0.1.2.11 public Google Books / Google Play Books actions
+
+The public OMP book page now presents prominent, accessible Google Books and Google Play Books buttons instead of repeating the ISBN and internal Google Volume ID. Google Books remains available for every exact discovered match. Google Play Books is shown only when the Books API explicitly returns a safe `saleInfo.buyLink`, identifies the result as an e-book, and reports a storefront state such as `FREE` or `FOR_SALE`.
+
+The upgrade adds nullable Google Play availability fields through the existing idempotent schema migration. Run catalogue discovery again after upgrading to populate them for records linked by an older release. Free books remain ONIX `UnpricedItemType 01`; the plugin never converts a genuinely free title into a zero-valued `Price` composite.
+
 ### 0.1.2.10 organized-volume A01 compatibility
 
 When a publication has no `A01` author but does have one or more OMP volume editors/editors, the Google-facing mapper promotes every organizer to `A01`. This satisfies Google Play Books' mandatory author field for organized volumes without modifying the contributor groups stored in OMP. If a real `A01` author already exists, editor roles remain unchanged. Every generated `Contributor` still contains exactly one `ContributorRole`.
@@ -22,7 +28,7 @@ Publisher-neutral Google Books / Google Play Books synchronization for **Open Mo
 - License: **GNU GPL v3 or later**
 - Installation directory/product: `googleBooks`
 - Canonical OMP runtime/settings key: `googlebooksplugin`
-- Current release: `0.1.2.10`
+- Current release: `0.1.2.11`
 - Primary compatibility target: **OMP 3.5.0-5 LTS**
 
 ## What the plugin does
@@ -43,8 +49,8 @@ It provides:
 - incremental synchronization and force-refresh actions, with per-transport file fingerprints and delivery state;
 - API-only status verification that does not modify the feed;
 - bounded automatic post-crawl Google Books rechecks for newly exposed books;
-- storage of Google Volume ID, information link and preview link;
-- a public Google Books link on the OMP book page through the OMP template hook, without core modifications;
+- storage of Google Volume ID, information/preview links and optional Google Play Books acquisition availability;
+- prominent public Google Books and API-confirmed Google Play Books actions on the OMP book page, without core modifications or exposed technical identifiers;
 - per-book and whole-catalog synchronization controls;
 - synchronization run history and error status;
 - a four-tab dashboard for overview, Google/API and transport authentication, delivery/files, and catalogue operations;
@@ -133,12 +139,12 @@ Published OMP book
     -> expose via HTTP/HTTPS pull OR push/stage through the selected transport
     -> Google processes new/modified resources
     -> plugin rechecks Google Books
-    -> Google Volume ID/link appears in OMP
+    -> Google Books action and, when confirmed by the API, Google Play Books action appear in OMP
 ```
 
 ### Discover catalog in Google Books
 
-Queries the public Google Books API for every valid ISBN carried by the current OMP publication formats. Discovery does not require an active feed, collection code, PDF/EPUB proof, prices or Sales Rights. Exact unambiguous matches are stored immediately and can appear on the public OMP book page.
+Queries the public Google Books API for every valid ISBN carried by the current OMP publication formats. Discovery does not require an active feed, collection code, PDF/EPUB proof, prices or Sales Rights. Exact unambiguous matches are stored immediately and can appear on the public OMP book page. When Google also returns `saleInfo.buyLink`, `saleability` and `isEbook`, discovery stores those country-dependent storefront signals for the optional Google Play Books action.
 
 Large catalogues are processed in small queued batches so the dashboard request does not remain open while external API calls are made. HTTP 429 and transient 5xx responses are retried with bounded exponential backoff and remain API errors if all attempts fail; they are not converted into “not found”.
 
@@ -308,7 +314,9 @@ Then install/enable it in the OMP plugin manager so the database migration is ap
 
 ## Upgrade from earlier releases
 
-Do not uninstall an older release before updating. Upload 0.1.2.10 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration keeps the delivery-file state required for incremental multi-transport synchronization current.
+Do not uninstall an older release before updating. Upload 0.1.2.11 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration adds the optional Google Play availability fields and keeps the delivery-file state required for incremental multi-transport synchronization current.
+
+After the upgrade, run **Discover catalogue in Google Books** once to populate Google Play availability for records discovered by earlier releases. A missing Play button means the Books API did not confirm an e-book acquisition link for the API request's country; it does not remove the Google Books link.
 
 Existing 0.1.1.x installations default to **HTTP/HTTPS pull**, preserving prior behavior until a manager explicitly selects a different transport. Existing HTTP crawler username/password settings remain valid. Outbound transport secrets introduced in 0.1.2.0 are stored separately and encrypted.
 

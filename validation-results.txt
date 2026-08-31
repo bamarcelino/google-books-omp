@@ -1,19 +1,19 @@
-Google Books Integration for OMP 0.1.2.10 - Final validation
+Google Books Integration for OMP 0.1.2.11 - Final validation
 Date: 2026-09-01
 
-OK 227 core behavior/auth/secret/delivery assertions
+OK 230 core behavior/auth/secret/delivery assertions
 OK 8 large ONIX feed assertions
 OK 22 Google validation commercial-profile assertions
 OK 10 strict Google Play profile assertions
 OK 9 source-backed ONIX enrichment checks
-OK 42 repository assertions, including delivery-file state
+OK 43 repository assertions, including Google Play availability and delivery-file state
 OK 27 mapper/DAO/code-24 ISBN/contributor fallback assertions
 OK 16 settings migration assertions
 OK 28 SFTP endpoint/diagnostic assertions
-OK 256 package/locale/security/source-contract checks
+OK 260 package/locale/security/source-contract checks
 OK 55 OMP 3.5 compatibility smoke assertions
 OK 40 dashboard operation/persistence/queue smoke assertions
-OK 740/740 total behavioral/contract assertions
+OK 748/748 total behavioral/contract assertions
 OK concurrent HTTPS pull and push/staging transport availability
 OK real ONIX validation sample: selected published anchor plus other real published OMP products, up to 10 unique ISBN records
 OK validation sample does not fabricate ISBNs or synthetic BookMetadata products
@@ -23,6 +23,9 @@ OK Google Books API key and outbound transport secrets remain protected at rest
 OK permanent repository CI: .github/workflows/ci.yml runs tests/run_all.sh on pull requests and main pushes
 OK every PHP source file linted with php -l
 OK Google Play Books contributor profile: exactly one primary ContributorRole per Contributor composite
+OK public book page omits repeated ISBN/Volume ID and renders responsive Books/Play actions
+OK Google Play Books action requires API-confirmed buyLink, e-book status and eligible saleability
+OK free Google Play products retain UnpricedItemType 01 and never emit a zero PriceAmount
 OK authorless organized volumes promote every B01/B13/B21 organizer to a single Google-facing A01
 OK mixed author/editor records preserve original editor roles and OMP source metadata remains unchanged
 OK incomplete ONIX guard: missing closing ONIXMessage or unbalanced Product composites are rejected

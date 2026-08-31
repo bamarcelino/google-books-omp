@@ -402,9 +402,13 @@ namespace {
         $book->publisher,
         false,
         1,
+        'https://books.google.test/buy',
+        'FREE',
+        true,
     );
     $linked = $repository->upsertDiscovery($book, $exact);
     $check($linked->discovery_status === 'linked' && $linked->google_volume_id === 'volume-123', 'Exact Google match was not linked');
+    $check($linked->google_buy_link === 'https://books.google.test/buy' && $linked->google_saleability === 'FREE' && (bool) $linked->google_is_ebook, 'Google Play availability was not persisted');
     $check($repository->stats(1)['linked'] === 1, 'Exact linked statistics are wrong');
 
     $notFound = $repository->upsertDiscovery($book, new GoogleBooksMatch(false));

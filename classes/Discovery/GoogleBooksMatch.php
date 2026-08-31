@@ -18,6 +18,9 @@ final class GoogleBooksMatch
         public ?string $publisher = null,
         public bool $ambiguous = false,
         public int $candidateCount = 0,
+        public ?string $buyLink = null,
+        public ?string $saleability = null,
+        public ?bool $isEbook = null,
     ) {
     }
 }

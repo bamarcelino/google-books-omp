@@ -673,12 +673,12 @@ namespace {
     $plugin->clearGoogleApiKey(1);
     $check(!$plugin->hasGoogleApiKey(1), 'Clearing the stored API key left an API-key setting active');
     $hookNames = array_map(static fn (array $hook): string => $hook[0], \PKP\plugins\Hook::$hooks);
-    $check(count($hookNames) === 5, 'Plugin did not register its five OMP hooks');
+    $check(count($hookNames) === 6, 'Plugin did not register its six OMP hooks');
     $check(
         array_values(array_intersect(
-            ['LoadHandler', 'Templates::Catalog::Book::Details', 'SubmissionFile::add', 'SubmissionFile::edit', 'SubmissionFile::delete'],
+            ['LoadHandler', 'TemplateManager::display', 'Templates::Catalog::Book::Details', 'SubmissionFile::add', 'SubmissionFile::edit', 'SubmissionFile::delete'],
             $hookNames,
-        )) === ['LoadHandler', 'Templates::Catalog::Book::Details', 'SubmissionFile::add', 'SubmissionFile::edit', 'SubmissionFile::delete'],
+        )) === ['LoadHandler', 'TemplateManager::display', 'Templates::Catalog::Book::Details', 'SubmissionFile::add', 'SubmissionFile::edit', 'SubmissionFile::delete'],
         'Plugin OMP hook set is incomplete',
     );
     $detailsHook = null;

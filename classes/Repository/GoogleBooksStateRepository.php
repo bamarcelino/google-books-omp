@@ -86,6 +86,9 @@ final class GoogleBooksStateRepository
                 'google_self_link' => $match->selfLink,
                 'google_info_link' => $match->infoLink,
                 'google_preview_link' => $match->previewLink,
+                'google_buy_link' => $match->buyLink,
+                'google_saleability' => $match->saleability,
+                'google_is_ebook' => $match->isEbook,
             ];
         }
 

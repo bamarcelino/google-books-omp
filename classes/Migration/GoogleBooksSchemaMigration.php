@@ -28,7 +28,7 @@ final class GoogleBooksSchemaMigration extends Migration
             return false;
         }
 
-        foreach (['feed_eligible', 'last_feed_checked_at', 'discovery_error', 'feed_error'] as $column) {
+        foreach (['google_buy_link', 'google_saleability', 'google_is_ebook', 'feed_eligible', 'last_feed_checked_at', 'discovery_error', 'feed_error'] as $column) {
             if (!Schema::hasColumn('google_books_records', $column)) {
                 return false;
             }
@@ -67,6 +67,9 @@ final class GoogleBooksSchemaMigration extends Migration
                 $table->text('google_self_link')->nullable();
                 $table->text('google_info_link')->nullable();
                 $table->text('google_preview_link')->nullable();
+                $table->text('google_buy_link')->nullable();
+                $table->string('google_saleability', 32)->nullable();
+                $table->boolean('google_is_ebook')->nullable();
                 $table->string('discovery_status', 32)->default('not_checked');
                 $table->string('sync_status', 32)->default('pending');
                 $table->boolean('feed_eligible')->default(false);
@@ -166,6 +169,9 @@ final class GoogleBooksSchemaMigration extends Migration
     private function upgradeRecordsTable(): void
     {
         $columns = [
+            'google_buy_link' => fn (Blueprint $table) => $table->text('google_buy_link')->nullable(),
+            'google_saleability' => fn (Blueprint $table) => $table->string('google_saleability', 32)->nullable(),
+            'google_is_ebook' => fn (Blueprint $table) => $table->boolean('google_is_ebook')->nullable(),
             'feed_eligible' => fn (Blueprint $table) => $table->boolean('feed_eligible')->default(false),
             'last_feed_checked_at' => fn (Blueprint $table) => $table->dateTime('last_feed_checked_at')->nullable(),
             'discovery_error' => fn (Blueprint $table) => $table->text('discovery_error')->nullable(),

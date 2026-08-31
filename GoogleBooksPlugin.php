@@ -25,6 +25,7 @@ use APP\plugins\generic\googleBooks\classes\Migration\PluginSettingsMigrator;
 use APP\plugins\generic\googleBooks\classes\Model\BookMetadata;
 use APP\plugins\generic\googleBooks\classes\Repository\GoogleBooksStateRepository;
 use APP\plugins\generic\googleBooks\classes\Security\SecretStore;
+use APP\template\TemplateManager;
 use Illuminate\Support\Facades\Event;
 use PKP\linkAction\LinkAction;
 use PKP\linkAction\request\RedirectAction;
@@ -43,6 +44,7 @@ final class GoogleBooksPlugin extends GenericPlugin
     public const PRODUCT_NAME = 'googleBooks';
     public const DASHBOARD_PAGE = 'googlebooks';
     public const FEED_PAGE = 'googlebooksfeed';
+    public const VERSION = '0.1.2.11';
 
     public function register($category, $path, $mainContextId = null)
     {
@@ -65,6 +67,7 @@ final class GoogleBooksPlugin extends GenericPlugin
         if ($enabled) {
             $this->addLocaleData();
             Hook::add('LoadHandler', $this->handlePage(...));
+            Hook::add('TemplateManager::display', $this->addPublicGoogleBooksStyles(...));
             // OMP calls Templates::Catalog::Book::Details after publication-format
             // identifiers/DOIs. The bundled Citation Style Language plugin uses
             // the default SEQUENCE_NORMAL on the same hook. Register at CORE so
@@ -267,9 +270,8 @@ final class GoogleBooksPlugin extends GenericPlugin
                 continue;
             }
             $records[] = [
-                'isbn13' => (string) $record->isbn13,
-                'volumeId' => (string) $record->google_volume_id,
-                'url' => $url,
+                'booksUrl' => $url,
+                'playUrl' => $this->publicGooglePlayUrl($record),
             ];
         }
         if ($records === []) {
@@ -277,6 +279,24 @@ final class GoogleBooksPlugin extends GenericPlugin
         }
         $templateMgr->assign('googleBooksPublicRecords', $records);
         $output .= $templateMgr->fetch($this->getTemplateResource('publicIdentifier.tpl'));
+        return false;
+    }
+
+    public function addPublicGoogleBooksStyles(string $hookName, array $args): bool
+    {
+        $templateMgr = $args[0] ?? null;
+        $request = Application::get()->getRequest();
+        $context = $request->getContext();
+        if (!$templateMgr || !$context || !$this->boolSetting((int) $context->getId(), 'showPublicLink', true)) {
+            return false;
+        }
+
+        $assetBase = rtrim($request->getBaseUrl(), '/') . '/' . trim($this->getPluginPath(), '/');
+        $templateMgr->addStyleSheet(
+            'googleBooksPublic',
+            $assetBase . '/styles/public.css?v=' . rawurlencode(self::VERSION),
+            ['contexts' => ['frontend'], 'priority' => TemplateManager::STYLE_SEQUENCE_LATE],
+        );
         return false;
     }
 
@@ -446,6 +466,29 @@ final class GoogleBooksPlugin extends GenericPlugin
         }
 
         return trim((string) ($record->google_self_link ?? ''));
+    }
+
+    /**
+     * Return Google's own acquisition URL only when the Books API confirms
+     * that the matched volume is an e-book offered in the relevant storefront.
+     */
+    private function publicGooglePlayUrl(object $record): string
+    {
+        if (!(bool) ($record->google_is_ebook ?? false)) {
+            return '';
+        }
+
+        $saleability = strtoupper(trim((string) ($record->google_saleability ?? '')));
+        if (!in_array($saleability, ['FREE', 'FOR_SALE', 'FOR_PREORDER', 'FOR_RENTAL_ONLY', 'FOR_SALE_AND_RENTAL'], true)) {
+            return '';
+        }
+
+        $url = trim((string) ($record->google_buy_link ?? ''));
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        if ($url === '' || !filter_var($url, FILTER_VALIDATE_URL) || !in_array($scheme, ['http', 'https'], true)) {
+            return '';
+        }
+        return $url;
     }
 
     private function canAutoDiscover(int $contextId): bool

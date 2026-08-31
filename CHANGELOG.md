@@ -1,3 +1,13 @@
+## 0.1.2.11 - 2026-09-01
+
+- Replaces the low-visibility public technical line with accessible, responsive Google Books and Google Play Books action buttons.
+- Removes the repeated ISBN and internal Google Volume ID from public OMP book pages.
+- Captures the Books API `saleInfo.buyLink`, `saleability` and `isEbook` fields after an exact ISBN match.
+- Shows the Google Play Books action only when Google explicitly reports an available e-book storefront link; Google Books remains the safe default action.
+- Adds an idempotent schema upgrade for the optional Google Play availability fields and preserves every existing discovery/feed record.
+- Keeps free titles unchanged as ONIX `UnpricedItemType 01`, consistent with direct Google support validation; no zero `PriceAmount` is emitted.
+- Bumps the plugin, public/dashboard assets and Google Books API User-Agent to 0.1.2.11.
+
 ## 0.1.2.10 - 2026-09-01
 
 - Promotes every OMP volume editor/editor to a single Google-facing `A01` role when an organized volume has no author.

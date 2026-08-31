@@ -81,12 +81,15 @@ final class GoogleBooksApiClient
             $candidate['publisher'],
             false,
             1,
+            $candidate['buyLink'],
+            $candidate['saleability'],
+            $candidate['isEbook'],
         );
     }
 
     /**
      * @param string[] $equivalents
-     * @return array<string,array{volumeId:string,selfLink:?string,infoLink:?string,previewLink:?string,matched:array<int,string>,title:?string,publisher:?string}>
+     * @return array<string,array{volumeId:string,selfLink:?string,infoLink:?string,previewLink:?string,matched:array<int,string>,title:?string,publisher:?string,buyLink:?string,saleability:?string,isEbook:?bool}>
      */
     private function searchOne(string $isbn, array $equivalents, bool $withPartner): array
     {
@@ -119,6 +122,16 @@ final class GoogleBooksApiClient
             if ($volumeId === '') {
                 continue;
             }
+            $saleInfo = is_array($item['saleInfo'] ?? null) ? $item['saleInfo'] : [];
+            $saleability = isset($saleInfo['saleability'])
+                ? strtoupper(trim((string) $saleInfo['saleability']))
+                : null;
+            if ($saleability === '') {
+                $saleability = null;
+            }
+            $isEbook = array_key_exists('isEbook', $saleInfo)
+                ? (bool) $saleInfo['isEbook']
+                : null;
             $candidates[$volumeId] = [
                 'volumeId' => $volumeId,
                 'selfLink' => $this->safeUrl(isset($item['selfLink']) ? (string) $item['selfLink'] : null),
@@ -127,6 +140,9 @@ final class GoogleBooksApiClient
                 'matched' => $matched,
                 'title' => isset($item['volumeInfo']['title']) ? (string) $item['volumeInfo']['title'] : null,
                 'publisher' => isset($item['volumeInfo']['publisher']) ? (string) $item['volumeInfo']['publisher'] : null,
+                'buyLink' => $this->safeUrl(isset($saleInfo['buyLink']) ? (string) $saleInfo['buyLink'] : null),
+                'saleability' => $saleability,
+                'isEbook' => $isEbook,
             ];
         }
         return $candidates;
@@ -167,7 +183,7 @@ final class GoogleBooksApiClient
             'timeout' => 12,
             'connect_timeout' => 5,
             'http_errors' => true,
-            'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.10'],
+            'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.11'],
         ]);
 
         $last = null;

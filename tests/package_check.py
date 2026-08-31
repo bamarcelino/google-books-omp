@@ -23,7 +23,7 @@ for rel in [
     'classes/Jobs/DeliveryJob.php', 'classes/Repository/GoogleBooksDeliveryRepository.php', 'classes/Security/SecretStore.php',
     'classes/Migration/PluginSettingsMigrator.php',
     'classes/Onix/GoogleOnixBuilder.php', 'classes/Sync/GoogleBooksSyncService.php',
-    'templates/dashboard.tpl', 'templates/publicIdentifier.tpl', 'styles/dashboard.css', 'scripts/dashboard.js',
+    'templates/dashboard.tpl', 'templates/publicIdentifier.tpl', 'styles/dashboard.css', 'styles/public.css', 'scripts/dashboard.js',
     'locale/en/locale.po', 'locale/es/locale.po', 'locale/pt_BR/locale.po',
     'tests/run.php', 'tests/repository_smoke.php', 'tests/mapper_smoke.php',
     'tests/omp35_smoke.php', 'tests/settings_migration_smoke.php', 'tests/sftp_endpoint_smoke.php', 'tests/package_check.py', 'tests/run_all.sh',
@@ -241,6 +241,11 @@ check("(string) ($record->sync_status ?? '') === 'retired'" in plugin, 'public l
 check("(string) $record->sync_status !== 'feed_available'" not in plugin, 'exact existing Google records are hidden until publisher-feed synchronization')
 check("(string) ($record->discovery_status ?? '') === 'multiple_matches'" in plugin, 'public link does not withhold ambiguous Google matches')
 check('https://books.google.com/books?id=' in plugin, 'public Google Books page fallback is missing')
+check('google_buy_link' in plugin and 'publicGooglePlayUrl' in plugin, 'public Google Play Books link handling is missing')
+public_tpl = (ROOT / 'templates/publicIdentifier.tpl').read_text(encoding='utf-8')
+public_css = (ROOT / 'styles/public.css').read_text(encoding='utf-8')
+check('Google Volume ID' not in public_tpl and 'isbn13' not in public_tpl, 'public link still exposes technical identifiers')
+check('viewOnGooglePlay' in public_tpl and '<svg' in public_tpl and '.google_books_button' in public_css, 'branded public Books/Play action UI is incomplete')
 check('Application::ROUTE_PAGE' in plugin and '$request->getDispatcher()->url(' in plugin, 'dashboard action does not use an explicit OMP page route')
 check("urlLocaleForPage: ''" not in plugin, 'dashboard action still suppresses locale insertion and can lose POST bodies on multilingual OMP')
 dashboard_tpl = (ROOT / 'templates/dashboard.tpl').read_text(encoding='utf-8')
