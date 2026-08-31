@@ -33,7 +33,7 @@ final class GoogleBooksApiClient
         $this->transport = $transport;
     }
 
-    public function findByIsbn(string $rawIsbn): GoogleBooksMatch
+    public function findByIsbn(string $rawIsbn, ?string $title = null): GoogleBooksMatch
     {
         $isbn13 = IdentifierNormalizer::preferredIsbn13($rawIsbn);
         if ($isbn13 === null) {
@@ -46,9 +46,9 @@ final class GoogleBooksApiClient
         // and ISBN-10 industryIdentifiers on the same Volume, so immediately
         // querying both identifiers doubles API traffic on large catalogues
         // without improving normal-case matching. ISBN-10 is a fallback only.
-        $candidates = $this->searchOne($isbn13, $equivalents, false);
+        $candidates = $this->searchOne('isbn:' . $isbn13, $equivalents, false);
         if ($candidates === [] && $isbn10 !== null) {
-            $candidates = $this->searchOne($isbn10, $equivalents, false);
+            $candidates = $this->searchOne('isbn:' . $isbn10, $equivalents, false);
         }
 
         // The partner parameter restricts results. It is therefore only a
@@ -56,10 +56,31 @@ final class GoogleBooksApiClient
         // be hidden merely because it is not returned under the configured
         // Partner ID.
         if ($candidates === [] && $this->partnerId) {
-            $candidates = $this->searchOne($isbn13, $equivalents, true);
+            $candidates = $this->searchOne('isbn:' . $isbn13, $equivalents, true);
             if ($candidates === [] && $isbn10 !== null) {
-                $candidates = $this->searchOne($isbn10, $equivalents, true);
+                $candidates = $this->searchOne('isbn:' . $isbn10, $equivalents, true);
             }
+        }
+
+        // Newly ingested Partner Center records can be visible on the Books or
+        // Play storefront before the public volumes.list ISBN field index is
+        // complete. Broader official list queries can still surface the Volume.
+        // searchOne() always checks industryIdentifiers against the canonical
+        // ISBN equivalents, so neither a plain-text nor a title result can be
+        // linked on title similarity alone.
+        if ($candidates === []) {
+            $candidates = $this->searchOne($isbn13, $equivalents, false);
+        }
+        if ($candidates === [] && $this->partnerId) {
+            $candidates = $this->searchOne($isbn13, $equivalents, true);
+        }
+
+        $titleQuery = $this->titleSearchQuery($title);
+        if ($candidates === [] && $titleQuery !== null) {
+            $candidates = $this->searchOne($titleQuery, $equivalents, false);
+        }
+        if ($candidates === [] && $titleQuery !== null && $this->partnerId) {
+            $candidates = $this->searchOne($titleQuery, $equivalents, true);
         }
 
         if ($candidates === []) {
@@ -91,10 +112,10 @@ final class GoogleBooksApiClient
      * @param string[] $equivalents
      * @return array<string,array{volumeId:string,selfLink:?string,infoLink:?string,previewLink:?string,matched:array<int,string>,title:?string,publisher:?string,buyLink:?string,saleability:?string,isEbook:?bool}>
      */
-    private function searchOne(string $isbn, array $equivalents, bool $withPartner): array
+    private function searchOne(string $query, array $equivalents, bool $withPartner): array
     {
         $data = $this->request([
-            'q' => 'isbn:' . $isbn,
+            'q' => $query,
             'maxResults' => 40,
             'projection' => 'full',
             'printType' => 'books',
@@ -148,6 +169,26 @@ final class GoogleBooksApiClient
         return $candidates;
     }
 
+    private function titleSearchQuery(?string $title): ?string
+    {
+        if ($title === null) {
+            return null;
+        }
+
+        $title = strip_tags(html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $title = preg_replace('/[\\x00-\\x1F\\x7F"\\\\]+/u', ' ', $title) ?? '';
+        $title = trim(preg_replace('/\\s+/u', ' ', $title) ?? '');
+        if ($title === '') {
+            return null;
+        }
+
+        $title = function_exists('mb_substr')
+            ? mb_substr($title, 0, 180, 'UTF-8')
+            : substr($title, 0, 180);
+
+        return 'intitle:"' . trim($title) . '"';
+    }
+
     private function safeUrl(?string $url): ?string
     {
         if ($url === null || !filter_var($url, FILTER_VALIDATE_URL)) {
@@ -183,7 +224,7 @@ final class GoogleBooksApiClient
             'timeout' => 12,
             'connect_timeout' => 5,
             'http_errors' => true,
-            'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.11'],
+            'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.12'],
         ]);
 
         $last = null;

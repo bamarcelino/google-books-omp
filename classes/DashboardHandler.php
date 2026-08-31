@@ -92,9 +92,11 @@ final class DashboardHandler extends \APP\handler\Handler
             $submission = Repo::submission()->get((int) $record->submission_id);
             $googleUrl = null;
             if ((string) ($record->discovery_status ?? '') !== 'multiple_matches') {
-                $googleUrl = $this->safeHttpUrl((string) ($record->google_info_link ?: $record->google_preview_link));
-                if ($googleUrl === null && trim((string) ($record->google_volume_id ?? '')) !== '') {
+                if (trim((string) ($record->google_volume_id ?? '')) !== '') {
                     $googleUrl = 'https://books.google.com/books?id=' . rawurlencode((string) $record->google_volume_id);
+                }
+                if ($googleUrl === null) {
+                    $googleUrl = $this->safeHttpUrl((string) ($record->google_info_link ?: $record->google_preview_link));
                 }
                 if ($googleUrl === null) {
                     $googleUrl = $this->safeHttpUrl((string) ($record->google_self_link ?? ''));

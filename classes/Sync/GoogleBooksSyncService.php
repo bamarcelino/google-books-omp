@@ -84,7 +84,7 @@ final class GoogleBooksSyncService
         foreach ($books as $book) {
             try {
                 $this->repository->ensureRecord($book);
-                $match = $apiClient->findByIsbn($book->isbn13);
+                $match = $apiClient->findByIsbn($book->isbn13, $book->title);
                 $this->repository->upsertDiscovery($book, $match);
                 if ($match->found) {
                     $result['linked']++;

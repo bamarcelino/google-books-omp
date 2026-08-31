@@ -1,5 +1,11 @@
 # Google Books Integration for OMP
 
+### 0.1.2.12 delayed-index discovery recovery
+
+Discovery now supplements the indexed `isbn:` lookup with a plain canonical ISBN query and, when necessary, an exact-title query. Every returned candidate must still expose the exact normalized ISBN in its own `industryIdentifiers`; title similarity alone can never create a link. This helps reconcile newly ingested Partner Center books that already appear on Google Books or Google Play Books before the public ISBN field index returns them through `q=isbn:`.
+
+The Google Books action now always uses the canonical `books.google.com/books?id=<VolumeID>` address. This keeps it separate from the optional Google Play Books action even when the API's `volumeInfo.infoLink` itself points to `play.google.com`. The dashboard status also now says **Not returned by the Google Books API** instead of claiming that a book is absent from Google. After upgrading, run catalogue discovery again so previously unresolved products receive the broader lookup sequence.
+
 ### 0.1.2.11 public Google Books / Google Play Books actions
 
 The public OMP book page now presents prominent, accessible Google Books and Google Play Books buttons instead of repeating the ISBN and internal Google Volume ID. Google Books remains available for every exact discovered match. Google Play Books is shown only when the Books API explicitly returns a safe `saleInfo.buyLink`, identifies the result as an e-book, and reports a storefront state such as `FREE` or `FOR_SALE`.
@@ -28,7 +34,7 @@ Publisher-neutral Google Books / Google Play Books synchronization for **Open Mo
 - License: **GNU GPL v3 or later**
 - Installation directory/product: `googleBooks`
 - Canonical OMP runtime/settings key: `googlebooksplugin`
-- Current release: `0.1.2.11`
+- Current release: `0.1.2.12`
 - Primary compatibility target: **OMP 3.5.0-5 LTS**
 
 ## What the plugin does
@@ -37,7 +43,7 @@ The plugin connects an OMP press to Google's official **Automated Content Fetchi
 
 It provides:
 
-- exact Google Books discovery by normalized ISBN;
+- exact Google Books discovery by normalized ISBN, with delayed-index query fallbacks;
 - ISBN-10 / ISBN-13 equivalence and punctuation-insensitive matching;
 - series ISSN normalization, including hyphens, dots, spaces and `X` check digits;
 - protection against duplicate normalized ISBNs inside the same OMP press;
@@ -144,7 +150,7 @@ Published OMP book
 
 ### Discover catalog in Google Books
 
-Queries the public Google Books API for every valid ISBN carried by the current OMP publication formats. Discovery does not require an active feed, collection code, PDF/EPUB proof, prices or Sales Rights. Exact unambiguous matches are stored immediately and can appear on the public OMP book page. When Google also returns `saleInfo.buyLink`, `saleability` and `isEbook`, discovery stores those country-dependent storefront signals for the optional Google Play Books action.
+Queries the public Google Books API for every valid ISBN carried by the current OMP publication formats. It first uses Google's indexed `isbn:` operator, then falls back to plain ISBN and exact-title queries when a newly ingested record is not yet exposed by that field index. Every candidate is still accepted only when its own `industryIdentifiers` contains the exact normalized ISBN. Discovery does not require an active feed, collection code, PDF/EPUB proof, prices or Sales Rights. Exact unambiguous matches are stored immediately and can appear on the public OMP book page. When Google also returns `saleInfo.buyLink`, `saleability` and `isEbook`, discovery stores those country-dependent storefront signals for the optional Google Play Books action.
 
 Large catalogues are processed in small queued batches so the dashboard request does not remain open while external API calls are made. HTTP 429 and transient 5xx responses are retried with bounded exponential backoff and remain API errors if all attempts fail; they are not converted into “not found”.
 
@@ -170,7 +176,7 @@ This first release does **not** send a Google withdrawal/deletion instruction. R
 
 The plugin never assumes that “not found” based on formatting means “new”. It compares canonical identifiers.
 
-An exact Google result must contain an ISBN that normalizes to an ISBN equivalent of the OMP product. Title-only search results are never used for automatic identity decisions.
+An exact Google result must contain an ISBN that normalizes to an ISBN equivalent of the OMP product. A title query may retrieve a candidate, but title similarity is never used for the identity decision.
 
 If the Books API exposes more than one distinct Google Volume ID with the same exact normalized ISBN, the plugin records `multiple_matches` and withholds automatic public linking instead of arbitrarily choosing a volume. The publisher feed can still remain available so Google can reconcile its catalog.
 
@@ -314,7 +320,7 @@ Then install/enable it in the OMP plugin manager so the database migration is ap
 
 ## Upgrade from earlier releases
 
-Do not uninstall an older release before updating. Upload 0.1.2.11 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration adds the optional Google Play availability fields and keeps the delivery-file state required for incremental multi-transport synchronization current.
+Do not uninstall an older release before updating. Upload 0.1.2.12 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration keeps the optional Google Play availability fields and delivery-file state required for incremental multi-transport synchronization current.
 
 After the upgrade, run **Discover catalogue in Google Books** once to populate Google Play availability for records discovered by earlier releases. A missing Play button means the Books API did not confirm an e-book acquisition link for the API request's country; it does not remove the Google Books link.
 

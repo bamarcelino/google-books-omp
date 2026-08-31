@@ -1,3 +1,12 @@
+## 0.1.2.12 - 2026-09-01
+
+- Adds safe fallback discovery through plain canonical ISBN and exact-title Books API queries when the public `isbn:` field index has not caught up with a newly ingested Partner Center record.
+- Continues to require an exact normalized ISBN inside each candidate Volume's `industryIdentifiers`; title similarity alone is never linked.
+- Passes the current OMP title into discovery and adds regressions for delayed ISBN indexing, title-query recovery and wrong-ISBN rejection.
+- Keeps the public Books action on canonical `books.google.com/books?id=<VolumeID>` even when Google's `volumeInfo.infoLink` points to the Play Store; `saleInfo.buyLink` remains exclusive to the Play action.
+- Renames the dashboard counter from an assertion that books are absent to the precise “not returned by the Google Books API” state.
+- Bumps the plugin, public/dashboard assets and Google Books API User-Agent to 0.1.2.12; no database migration.
+
 ## 0.1.2.11 - 2026-09-01
 
 - Replaces the low-visibility public technical line with accessible, responsive Google Books and Google Play Books action buttons.

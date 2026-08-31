@@ -28,7 +28,7 @@ msgid "plugins.generic.googleBooks.linked"
 msgstr "Linked to Google Books"
 
 msgid "plugins.generic.googleBooks.notFound"
-msgstr "Not yet found in Google Books"
+msgstr "Not returned by the Google Books API"
 
 msgid "plugins.generic.googleBooks.feedAvailable"
 msgstr "Available in publisher feed"

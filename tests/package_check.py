@@ -152,7 +152,9 @@ check('X-Robots-Tag: noindex, nofollow, noarchive' in feed, 'feed noindex header
 check("HTTP_IF_MODIFIED_SINCE" in feed and '304 Not Modified' in feed, 'conditional feed retrieval support missing')
 
 api = (ROOT / 'classes/Api/GoogleBooksApiClient.php').read_text(encoding='utf-8')
-check("'q' => 'isbn:' . $isbn" in api, 'Google Books exact ISBN query missing')
+check("searchOne('isbn:' . $isbn13" in api and "searchOne('isbn:' . $isbn10" in api, 'Google Books exact ISBN queries are missing')
+check("searchOne($isbn13, $equivalents" in api and 'titleSearchQuery' in api and "return 'intitle:" in api,
+      'Google Books delayed-index discovery fallbacks are missing')
 check('IdentifierNormalizer::isbnEquivalents' in api, 'Google Books identifier normalization missing')
 check('ambiguous: true' in api, 'multiple exact Google Volume detection missing')
 check('RequestException' in api and "'HTTP ' . $last->getResponse()->getStatusCode()" in api, 'Google API error sanitization contract missing')
@@ -242,6 +244,9 @@ check("(string) $record->sync_status !== 'feed_available'" not in plugin, 'exact
 check("(string) ($record->discovery_status ?? '') === 'multiple_matches'" in plugin, 'public link does not withhold ambiguous Google matches')
 check('https://books.google.com/books?id=' in plugin, 'public Google Books page fallback is missing')
 check('google_buy_link' in plugin and 'publicGooglePlayUrl' in plugin, 'public Google Play Books link handling is missing')
+public_books_method = plugin.split('private function publicGoogleBooksUrl', 1)[1].split('private function publicGooglePlayUrl', 1)[0]
+check(public_books_method.find('google_volume_id') < public_books_method.find('google_info_link'),
+      'public Books action does not prefer the canonical books.google.com Volume ID URL')
 public_tpl = (ROOT / 'templates/publicIdentifier.tpl').read_text(encoding='utf-8')
 public_css = (ROOT / 'styles/public.css').read_text(encoding='utf-8')
 check('Google Volume ID' not in public_tpl and 'isbn13' not in public_tpl, 'public link still exposes technical identifiers')

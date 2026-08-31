@@ -44,7 +44,7 @@ final class GoogleBooksPlugin extends GenericPlugin
     public const PRODUCT_NAME = 'googleBooks';
     public const DASHBOARD_PAGE = 'googlebooks';
     public const FEED_PAGE = 'googlebooksfeed';
-    public const VERSION = '0.1.2.11';
+    public const VERSION = '0.1.2.12';
 
     public function register($category, $path, $mainContextId = null)
     {
@@ -453,16 +453,20 @@ final class GoogleBooksPlugin extends GenericPlugin
 
     private function publicGoogleBooksUrl(object $record): string
     {
+        // volumeInfo.infoLink is not guaranteed to stay on books.google.com;
+        // for sale-enabled e-books Google frequently returns a Play Store URL.
+        // The Volume ID is the stable identity shared by both products, so use
+        // it to keep the Books action distinct from saleInfo.buyLink/Play.
+        $volumeId = trim((string) ($record->google_volume_id ?? ''));
+        if ($volumeId !== '') {
+            return 'https://books.google.com/books?id=' . rawurlencode($volumeId);
+        }
+
         foreach ([$record->google_info_link ?? null, $record->google_preview_link ?? null] as $candidate) {
             $candidate = trim((string) $candidate);
             if ($candidate !== '') {
                 return $candidate;
             }
-        }
-
-        $volumeId = trim((string) ($record->google_volume_id ?? ''));
-        if ($volumeId !== '') {
-            return 'https://books.google.com/books?id=' . rawurlencode($volumeId);
         }
 
         return trim((string) ($record->google_self_link ?? ''));

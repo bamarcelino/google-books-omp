@@ -162,6 +162,56 @@ $partnerMatch = $partnerFallbackClient->findByIsbn($canonical);
 check($partnerMatch->found && $partnerMatch->volumeId === 'partnerVolume', 'Partner-restricted fallback discovery failed');
 check((bool) array_filter($fallbackRequests, static fn (array $request): bool => ($request[1]['partner'] ?? null) === 'partnerId'), 'Google Books partner fallback query was not issued');
 
+$plainIsbnRequests = [];
+$plainIsbnClient = new GoogleBooksApiClient(null, null, static function (string $url, array $query) use (&$plainIsbnRequests, $canonical): array {
+    $plainIsbnRequests[] = [$url, $query];
+    if (($query['q'] ?? null) !== $canonical) {
+        return [];
+    }
+    return ['items' => [[
+        'id' => 'plainIsbnVolume',
+        'volumeInfo' => [
+            'title' => 'Recently ingested book',
+            'industryIdentifiers' => [['type' => 'ISBN_13', 'identifier' => $canonical]],
+        ],
+    ]]];
+});
+$plainIsbnMatch = $plainIsbnClient->findByIsbn($canonical, 'Recently ingested book');
+check($plainIsbnMatch->found && $plainIsbnMatch->volumeId === 'plainIsbnVolume', 'Plain-ISBN fallback did not recover an exact recently ingested Volume');
+check(count($plainIsbnRequests) === 3 && ($plainIsbnRequests[2][1]['q'] ?? null) === $canonical, 'Plain-ISBN fallback was not issued after the indexed ISBN-13/ISBN-10 queries');
+
+$titleFallbackRequests = [];
+$titleFallbackClient = new GoogleBooksApiClient(null, null, static function (string $url, array $query) use (&$titleFallbackRequests, $canonical): array {
+    $titleFallbackRequests[] = [$url, $query];
+    if (($query['q'] ?? null) !== 'intitle:"A recently indexed organized volume: stories for sleep"') {
+        return [];
+    }
+    return ['items' => [[
+        'id' => 'delayedTitleVolume',
+        'volumeInfo' => [
+            'title' => 'A recently indexed organized volume: stories for sleep',
+            'industryIdentifiers' => [['type' => 'ISBN_13', 'identifier' => $canonical]],
+        ],
+    ]]];
+});
+$titleFallbackMatch = $titleFallbackClient->findByIsbn($canonical, 'A recently indexed organized volume: stories for sleep');
+check($titleFallbackMatch->found && $titleFallbackMatch->volumeId === 'delayedTitleVolume', 'Title-query fallback did not recover an exact ISBN-confirmed Volume');
+check(($titleFallbackRequests[3][1]['q'] ?? null) === 'intitle:"A recently indexed organized volume: stories for sleep"', 'Title-query fallback order or query normalization is wrong');
+
+$titleFalsePositiveClient = new GoogleBooksApiClient(null, null, static function (string $url, array $query): array {
+    if (!str_starts_with((string) ($query['q'] ?? ''), 'intitle:')) {
+        return [];
+    }
+    return ['items' => [[
+        'id' => 'sameTitleWrongIsbn',
+        'volumeInfo' => [
+            'title' => 'The same title',
+            'industryIdentifiers' => [['type' => 'ISBN_13', 'identifier' => '9780131103627']],
+        ],
+    ]]];
+});
+check($titleFalsePositiveClient->findByIsbn($canonical, 'The same title')->found === false, 'Title fallback linked a Volume whose industryIdentifiers did not contain the exact ISBN');
+
 $nonMatchClient = new GoogleBooksApiClient(null, null, static function (): array {
     return [
         'items' => [[
@@ -599,6 +649,12 @@ check(str_contains($mapperSource, "DAORegistry::getDAO('PublicationFormatDAO')")
 check(str_contains($mapperSource, "'24' => 30") && str_contains($mapperSource, 'getFormatDiscoveryIsbns13'), 'Mapper does not recognize co-publisher ISBN-13 (ONIX code 24) during discovery.');
 check(str_contains($pluginSource, 'SubmissionDiscoveryJob::dispatchAfterResponse') && str_contains($pluginSource, 'canAutoDiscover'), 'Published metadata changes do not trigger independent API discovery.');
 check(str_contains($pluginSource, "'booksUrl' => \$url") && str_contains($pluginSource, "'playUrl' => \$this->publicGooglePlayUrl(\$record)"), 'Public book details do not receive the Google Books and optional Google Play links.');
+$publicBooksUrlSource = explode('private function publicGooglePlayUrl', explode('private function publicGoogleBooksUrl', $pluginSource, 2)[1] ?? '', 2)[0] ?? '';
+check(
+    strpos($publicBooksUrlSource, 'google_volume_id') !== false
+    && strpos($publicBooksUrlSource, 'google_volume_id') < strpos($publicBooksUrlSource, 'google_info_link'),
+    'Public Google Books action does not prefer the canonical books.google.com Volume ID URL over an API infoLink that may point to Google Play.'
+);
 $publicIdentifierTemplate = file_get_contents(dirname(__DIR__) . '/templates/publicIdentifier.tpl');
 check(!str_contains($publicIdentifierTemplate, 'Google Volume ID') && !str_contains($publicIdentifierTemplate, 'isbn13'), 'Public Google Books block still exposes technical ISBN or Volume ID metadata.');
 check(str_contains($publicIdentifierTemplate, 'viewOnGoogleBooks') && str_contains($publicIdentifierTemplate, 'viewOnGooglePlay') && str_contains($publicIdentifierTemplate, '<svg'), 'Public Google Books block does not provide branded Books and optional Play actions.');

@@ -1,4 +1,4 @@
-# Google Books Integration for OMP 0.1.2.11 - Validation Report
+# Google Books Integration for OMP 0.1.2.12 - Validation Report
 
 **Target:** Open Monograph Press 3.5.x, validated against OMP/PKP 3.5.0-5 public contracts  
 **Author:** Bruno Cesar Alves Marcelino  
@@ -7,7 +7,7 @@
 
 ## Scope
 
-Release 0.1.2.11 retains the transport-neutral delivery layer, encrypted API/transport secrets, strict Google ONIX validation and organized-volume `A01` compatibility. It replaces the public technical identifier line with branded Books/Play actions and stores Google Play availability only when the Books API returns an exact ISBN match with a safe `saleInfo.buyLink`, an e-book flag and an eligible storefront state.
+Release 0.1.2.12 retains the transport-neutral delivery layer, encrypted API/transport secrets, strict Google ONIX validation and organized-volume `A01` compatibility. It adds delayed-index Books API discovery fallbacks that still require an exact ISBN in every matched Volume. The public Books action uses the canonical Volume-ID address independently from the API-confirmed Google Play acquisition link.
 
 Validation covers plugin code, OMP-facing contracts, identifier normalization, Google Books discovery behavior, ONIX generation, delivery-manifest generation, reversible outbound-secret protection, database state, transport configuration, localization, queue integration and distribution archives. It does not claim that Google has accepted a real publisher feed or credentials; Google-side onboarding remains external.
 
@@ -113,7 +113,7 @@ Delivery-manifest tests additionally verify the expected `onix/validate`, `<COLL
 
 ## Public OMP book page
 
-Exact, unambiguous Google Volume IDs remain eligible for the public Google Books action. The public template no longer exposes the repeated ISBN or internal Volume ID. A separate Google Play Books action is rendered only for an API-confirmed e-book with a safe acquisition URL and eligible `saleability`. OMP 3.5.0-5 invokes `Templates::Catalog::Book::Details` after its publication-format identifiers/DOI block, and the plugin retains `Hook::SEQUENCE_CORE` so the action block appears before the normal citation widget without a core template override. A scoped, versioned frontend stylesheet provides responsive buttons, keyboard focus and decorative inline vector icons.
+Exact, unambiguous Google Volume IDs remain eligible for the public Google Books action. The public template no longer exposes the repeated ISBN or internal Volume ID. The Books action is built as `https://books.google.com/books?id=<VolumeID>` because Google's `volumeInfo.infoLink` can itself point to the Play Store. A separate Google Play Books action is rendered only for an API-confirmed e-book with a safe `saleInfo.buyLink` acquisition URL and eligible `saleability`. OMP 3.5.0-5 invokes `Templates::Catalog::Book::Details` after its publication-format identifiers/DOI block, and the plugin retains `Hook::SEQUENCE_CORE` so the action block appears before the normal citation widget without a core template override. A scoped, versioned frontend stylesheet provides responsive buttons, keyboard focus and decorative inline vector icons.
 
 ## Dashboard, localization and publisher neutrality
 
@@ -136,15 +136,19 @@ The final source tree passes:
 
 | Suite | Result |
 | --- | ---: |
-| Core behavior, identifiers, Google matching, auth/secret and delivery contracts | 218/218 |
-| Repository/database state, including delivery-file state | 42/42 |
-| OMP mapper/DAO/code-24 ISBN regression | 24/24 |
+| Core behavior, identifiers, Google matching, auth/secret and delivery contracts | 236/236 |
+| Large ONIX feed | 8/8 |
+| Google commercial validation profile | 22/22 |
+| Strict Google Play profile | 10/10 |
+| Source-backed ONIX enrichment | 9/9 |
+| Repository/database state, including delivery-file state | 43/43 |
+| OMP mapper/DAO/code-24 ISBN regression | 27/27 |
 | Plugin-settings migration | 16/16 |
 | SFTP endpoint normalization and staged diagnostic regression | 28/28 |
-| Package, locale, security and source contracts | 215/215 |
+| Package, locale, security and source contracts | 262/262 |
 | OMP 3.5 compatibility smoke suite | 55/55 |
 | Dashboard POST/persistence/queue smoke suite | 40/40 |
-| **Total behavioral/contract assertions** | **638/638** |
+| **Total behavioral/contract assertions** | **756/756** |
 
 In addition, every PHP file in the release is linted with `php -l`; any syntax error fails packaging.
 
