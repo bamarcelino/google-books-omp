@@ -26,6 +26,9 @@ use PKP\userGroup\UserGroup;
 
 final class OmpBookMapper
 {
+    /** ONIX editor roles used by OMP contributor groups for organized volumes. */
+    private const ORGANIZER_ROLES = ['B01', 'B13', 'B21'];
+
     /**
      * A single OMP monograph can expose more than one Google product when
      * publication formats have different eISBNs.
@@ -277,9 +280,39 @@ final class OmpBookMapper
             ];
         }
 
-        // Google Play Books' ONIX ingestion profile requires one primary
-        // ContributorRole per Contributor composite. Preserve the role recorded
-        // by OMP and do not add a synthetic A01 compatibility role to editors.
+        return $this->promoteOrganizersWhenAuthorMissing($contributors);
+    }
+
+    /**
+     * Google Play Books requires at least one A01 contributor for every book.
+     * Organized volumes in OMP commonly contain only volume editors/editors,
+     * even though those people are the book-level responsible contributors.
+     * In that case, expose every organizer as A01 in the Google-facing model.
+     * The source OMP contributor groups remain unchanged, and mixed records
+     * that already contain an author keep their original editor roles.
+     *
+     * @param array<int,array{role:string,roles:array<int,string>,name:string,orcid:?string}> $contributors
+     * @return array<int,array{role:string,roles:array<int,string>,name:string,orcid:?string}>
+     */
+    private function promoteOrganizersWhenAuthorMissing(array $contributors): array
+    {
+        foreach ($contributors as $contributor) {
+            if (strtoupper(trim((string) ($contributor['role'] ?? ''))) === 'A01') {
+                return $contributors;
+            }
+        }
+
+        foreach ($contributors as &$contributor) {
+            $role = strtoupper(trim((string) ($contributor['role'] ?? '')));
+            if (!in_array($role, self::ORGANIZER_ROLES, true)) {
+                continue;
+            }
+
+            $contributor['role'] = 'A01';
+            $contributor['roles'] = ['A01'];
+        }
+        unset($contributor);
+
         return $contributors;
     }
 

@@ -167,7 +167,7 @@ final class GoogleBooksApiClient
             'timeout' => 12,
             'connect_timeout' => 5,
             'http_errors' => true,
-            'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.9'],
+            'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.10'],
         ]);
 
         $last = null;

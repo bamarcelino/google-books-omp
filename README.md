@@ -1,5 +1,9 @@
 # Google Books Integration for OMP
 
+### 0.1.2.10 organized-volume A01 compatibility
+
+When a publication has no `A01` author but does have one or more OMP volume editors/editors, the Google-facing mapper promotes every organizer to `A01`. This satisfies Google Play Books' mandatory author field for organized volumes without modifying the contributor groups stored in OMP. If a real `A01` author already exists, editor roles remain unchanged. Every generated `Contributor` still contains exactly one `ContributorRole`.
+
 ### 0.1.2.5 Google Play Books ONIX profile corrections
 
 Release 0.1.2.5 incorporates direct Google Play Books validation feedback. Each `<Contributor>` now serializes exactly one primary `<ContributorRole>` derived from OMP; the previous editor-only compatibility fallback that appended `A01` to a `B01` contributor has been removed. Legacy multi-role data is defensively collapsed to the primary role during serialization.
@@ -18,7 +22,7 @@ Publisher-neutral Google Books / Google Play Books synchronization for **Open Mo
 - License: **GNU GPL v3 or later**
 - Installation directory/product: `googleBooks`
 - Canonical OMP runtime/settings key: `googlebooksplugin`
-- Current release: `0.1.2.3`
+- Current release: `0.1.2.10`
 - Primary compatibility target: **OMP 3.5.0-5 LTS**
 
 ## What the plugin does
@@ -304,7 +308,7 @@ Then install/enable it in the OMP plugin manager so the database migration is ap
 
 ## Upgrade from earlier releases
 
-Do not uninstall an older release before updating. Upload 0.1.2.3 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration adds the delivery-file state table required for incremental multi-transport synchronization.
+Do not uninstall an older release before updating. Upload 0.1.2.10 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration keeps the delivery-file state required for incremental multi-transport synchronization current.
 
 Existing 0.1.1.x installations default to **HTTP/HTTPS pull**, preserving prior behavior until a manager explicitly selects a different transport. Existing HTTP crawler username/password settings remain valid. Outbound transport secrets introduced in 0.1.2.0 are stored separately and encrypted.
 

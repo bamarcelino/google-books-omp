@@ -292,7 +292,10 @@ check('$this->buildTerritory($market, 5)' in builder, 'paid Price territory is m
 check('contributorRole($contributor)' in builder and "foreach ($this->contributorRoles($contributor) as $role)" not in builder, 'Google single ContributorRole serialization contract missing')
 check("CollectionIDType', '01'" in builder and "IDTypeName', 'Publisher Series ID'" in builder, 'proprietary ONIX collection identifier fallback missing')
 check('count($roles) !== 1' in (ROOT / 'classes/Onix/GoogleOnixValidator.php').read_text(encoding='utf-8'), 'Google single ContributorRole validation contract missing')
-check("$contributors[0]['roles'][] = 'A01'" not in mapper, 'mapper still injects a synthetic A01 compatibility role')
+check('promoteOrganizersWhenAuthorMissing' in mapper and 'ORGANIZER_ROLES' in mapper,
+      'mapper does not provide the editor-only A01 compatibility fallback')
+check("$contributors[0]['roles'][] = 'A01'" not in mapper,
+      'mapper reintroduced the rejected multi-role A01 compatibility shape')
 
 job_files = [f for f in (ROOT / 'classes/Jobs').glob('*.php') if f.name not in {'CatalogVerifyJob.php', 'GoogleBooksJob.php'}]
 check(bool(job_files) and all('getEnabled($this->contextId)' in f.read_text(encoding='utf-8') for f in job_files), 'active queued jobs do not stop cleanly when the plugin is disabled')

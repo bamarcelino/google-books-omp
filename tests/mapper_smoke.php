@@ -185,14 +185,20 @@ namespace MapperSmoke {
 
     final class Author
     {
+        public function __construct(
+            private int $userGroupId = 7,
+            private string $fullName = 'Editor Example',
+        ) {
+        }
+
         public function getUserGroupId(): int
         {
-            return 7;
+            return $this->userGroupId;
         }
 
         public function getFullName(): string
         {
-            return 'Editor Example';
+            return $this->fullName;
         }
 
         public function getOrcid(): string
@@ -276,9 +282,14 @@ namespace MapperSmoke {
 
     final class Publication
     {
-        /** @param array<int,Format> $formats */
-        public function __construct(private array $formats)
-        {
+        /**
+         * @param array<int,Format> $formats
+         * @param ?array<int,Author> $authors
+         */
+        public function __construct(
+            private array $formats,
+            private ?array $authors = null,
+        ) {
         }
 
         public function getId(): int
@@ -305,7 +316,7 @@ namespace MapperSmoke {
                 'datePublished' => '2026-08-13',
                 'licenseUrl' => 'https://creativecommons.org/licenses/by/4.0/',
                 'seriesId' => 77,
-                'authors' => [new Author()],
+                'authors' => $this->authors ?? [new Author()],
                 'publicationFormats' => null,
                 default => null,
             };
@@ -466,6 +477,7 @@ namespace {
 
     use APP\plugins\generic\googleBooks\classes\Sync\OmpBookMapper;
     use APP\submission\Submission;
+    use MapperSmoke\Author;
     use MapperSmoke\Context;
     use MapperSmoke\FileService;
     use MapperSmoke\FileSystem;
@@ -597,8 +609,40 @@ namespace {
     mapperCheck($book !== null && $book->freeOfCharge === true, 'mapper did not infer open access from OMP proof pricing');
     mapperCheck($book !== null && $book->prices === [], 'open-access product retained paid prices');
     mapperCheck($book !== null && ($book->salesRights[0]['regionsIncluded'] ?? []) === ['WORLD'], 'default worldwide rights were not added for a free title');
-    mapperCheck($book !== null && ($book->contributors[0]['roles'] ?? []) === ['B01'], 'edited-volume contributor did not preserve a single OMP-derived B01 role');
+    mapperCheck($book !== null && ($book->contributors[0]['roles'] ?? []) === ['A01'], 'sole volume editor was not promoted to Google-facing A01');
     mapperCheck($book !== null && ($book->contributors[0]['orcid'] ?? null) === 'https://orcid.org/0000-0002-1825-0097', 'verified ORCID was not preserved');
+
+    $mapper = new OmpBookMapper();
+    $contributorsMethod = new \ReflectionMethod($mapper, 'contributors');
+    State::$userGroupRoles = [
+        7 => 'default.groups.name.volumeEditor',
+        8 => 'default.groups.name.editor',
+        9 => 'default.groups.name.author',
+    ];
+    $organizedPublication = new Publication([], [
+        new Author(7, 'Organizer One'),
+        new Author(8, 'Organizer Two'),
+    ]);
+    $organizedContributors = $contributorsMethod->invoke($mapper, $organizedPublication);
+    mapperCheck(
+        array_column($organizedContributors, 'role') === ['A01', 'A01'],
+        'all organizers were not promoted when the volume had no author',
+    );
+    mapperCheck(
+        array_column($organizedContributors, 'name') === ['Organizer One', 'Organizer Two'],
+        'organizer promotion changed contributor names or order',
+    );
+
+    $mixedPublication = new Publication([], [
+        new Author(9, 'Real Author'),
+        new Author(7, 'Volume Organizer'),
+    ]);
+    $mixedContributors = $contributorsMethod->invoke($mapper, $mixedPublication);
+    mapperCheck(
+        array_column($mixedContributors, 'role') === ['A01', 'B01'],
+        'existing author did not prevent organizer-role promotion',
+    );
+    State::$userGroupRoles = [7 => 'default.groups.name.volumeEditor'];
 
     $extensions = $book ? array_column($book->assets, 'extension') : [];
     sort($extensions);

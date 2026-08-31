@@ -2,6 +2,7 @@
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+PYTHON_BIN=${PYTHON_BIN:-python3}
 cd "$ROOT"
 
 find . -type f -name '*.php' -print0 | sort -z | xargs -0 -n1 php -l >/dev/null
@@ -14,7 +15,7 @@ php tests/repository_smoke.php
 php tests/mapper_smoke.php
 php tests/settings_migration_smoke.php
 php tests/sftp_endpoint_smoke.php
-python3 tests/package_check_v0124.py
+"$PYTHON_BIN" tests/package_check_v0124.py
 php tests/omp35_smoke.php
 
 api_capture=$(mktemp)

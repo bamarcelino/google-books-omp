@@ -13,22 +13,22 @@ source = source_path.read_text(encoding='utf-8')
 # packages can still be inspected with this maintenance wrapper.
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.3 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.9 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.10 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.3', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.9', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.10', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.9')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.10')
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.5 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.9 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.10 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.5', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.9', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.10', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.9')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.10')
 
 extra = r'''
 # 0.1.2.4+ live-onboarding regressions
@@ -121,9 +121,11 @@ check('positiveIntegerFromFormat' in enrichment and "'frontMatter'" in enrichmen
 check('guessSubject' not in enrichment and 'guessPage' not in enrichment,
       'ONIX enrichment introduced synthetic metadata inference')
 
-# 0.1.2.9 strict Google Play profile regressions
+# 0.1.2.9+ strict Google Play profile regressions
 check('ContributorRole A01 is required for Google Play Books' in validator,
       'Google profile validator does not require an A01 author')
+check('promoteOrganizersWhenAuthorMissing' in mapper and 'ORGANIZER_ROLES' in mapper,
+      'organized volumes do not receive the Google-facing A01 fallback')
 check('GOOGLE_SUBJECT_SCHEMES' in validator and "'10'" in validator and "'78'" in validator,
       'Google-supported subject scheme whitelist is missing')
 check('must contain SubjectCode' in validator,

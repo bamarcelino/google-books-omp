@@ -377,7 +377,21 @@ $entityBook->title = $cleaned;
 $entityXml = $builder->build([$entityBook], 'Publisher & Society');
 check(str_contains($entityXml, '<TitleText>Research &amp; Society Second line</TitleText>'), 'ONIX XML did not escape cleaned ampersands exactly once');
 check(!str_contains($entityXml, '&amp;amp;'), 'ONIX XML double-escaped an HTML entity');
-check(!str_contains(file_get_contents(dirname(__DIR__) . '/classes/Sync/OmpBookMapper.php'), "\$contributors[0]['roles'][] = 'A01'"), 'OMP mapper still injects a synthetic A01 role into editor-only volumes');
+$promoteOrganizers = new ReflectionMethod($mapper, 'promoteOrganizersWhenAuthorMissing');
+$organizedContributors = $promoteOrganizers->invoke($mapper, [
+    ['role' => 'B01', 'roles' => ['B01'], 'name' => 'Organizer One', 'orcid' => null],
+    ['role' => 'B21', 'roles' => ['B21'], 'name' => 'Organizer Two', 'orcid' => null],
+]);
+check(array_column($organizedContributors, 'role') === ['A01', 'A01'], 'OMP mapper did not promote every organizer when no author exists');
+$mixedContributors = $promoteOrganizers->invoke($mapper, [
+    ['role' => 'A01', 'roles' => ['A01'], 'name' => 'Real Author', 'orcid' => null],
+    ['role' => 'B01', 'roles' => ['B01'], 'name' => 'Volume Organizer', 'orcid' => null],
+]);
+check(array_column($mixedContributors, 'role') === ['A01', 'B01'], 'OMP mapper changed organizer roles even though an author already exists');
+$translatorOnly = $promoteOrganizers->invoke($mapper, [
+    ['role' => 'B06', 'roles' => ['B06'], 'name' => 'Translator Only', 'orcid' => null],
+]);
+check(array_column($translatorOnly, 'role') === ['B06'], 'OMP mapper promoted a non-organizer contributor to A01');
 
 $localizedData = new ReflectionMethod($mapper, 'localizedData');
 $localizedObject = new class {

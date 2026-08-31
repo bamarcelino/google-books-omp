@@ -1,3 +1,10 @@
+## 0.1.2.10 - 2026-09-01
+
+- Promotes every OMP volume editor/editor to a single Google-facing `A01` role when an organized volume has no author.
+- Preserves editor roles when a real `A01` author already exists and leaves OMP source contributor groups unchanged.
+- Adds regression coverage for one organizer, multiple organizers, mixed author/editor records and non-organizer contributors.
+- Bumps the plugin, dashboard assets and Google Books API User-Agent to 0.1.2.10; no database migration.
+
 ## 0.1.2.8 - 2026-08-27
 
 - Adds source-backed optional ONIX enrichment requested by Google Play Books without inventing metadata.

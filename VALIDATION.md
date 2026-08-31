@@ -1,4 +1,4 @@
-# Google Books Integration for OMP 0.1.2.3 - Validation Report
+# Google Books Integration for OMP 0.1.2.10 - Validation Report
 
 **Target:** Open Monograph Press 3.5.x, validated against OMP/PKP 3.5.0-5 public contracts  
 **Author:** Bruno Cesar Alves Marcelino  
@@ -7,7 +7,7 @@
 
 ## Scope
 
-Release 0.1.2.3 retains the 0.1.2.x transport-neutral delivery layer, encrypted API/transport secrets and dashboard repairs while hardening live SFTP onboarding and connection diagnostics. It preserves the prior OMP 3.5 repairs for HTTP Basic authentication, dashboard actions, ISBN discovery, localization, Google Books API error handling, queue isolation and public identifier placement.
+Release 0.1.2.10 retains the 0.1.2.x transport-neutral delivery layer, encrypted API/transport secrets, dashboard repairs and strict Google ONIX validation. It adds an export-only compatibility rule for organized volumes: when no `A01` author exists, every OMP volume editor/editor is emitted as a single-role `A01` contributor without changing the OMP source metadata. Existing mixed author/editor records preserve their roles.
 
 Validation covers plugin code, OMP-facing contracts, identifier normalization, Google Books discovery behavior, ONIX generation, delivery-manifest generation, reversible outbound-secret protection, database state, transport configuration, localization, queue integration and distribution archives. It does not claim that Google has accepted a real publisher feed or credentials; Google-side onboarding remains external.
 
@@ -169,9 +169,8 @@ Google must still perform its one-time publisher onboarding and ingestion proces
 
 ## Google Play Books contributor-role and XML-completeness corrections
 
-Following direct Google Play Books validation feedback, every generated `Contributor` composite now contains exactly one primary `ContributorRole`. The mapper no longer adds a synthetic `A01` role to editor-only records and the builder defensively serializes only the primary role if legacy data still contains multiple role values. The runtime validator rejects multi-role contributor composites under the Google profile.
+Following direct Google Play Books validation feedback, every generated `Contributor` composite contains exactly one primary `ContributorRole`, and the builder defensively serializes only the primary role if legacy data still contains multiple role values. For organized volumes with no author, the mapper changes each OMP volume-editor/editor role to a single Google-facing `A01`; it does not append a second role and does not modify OMP source metadata. Mixed author/editor records preserve their original roles. The runtime validator rejects multi-role contributor composites under the Google profile.
 
 Generated ONIX is also checked explicitly for a closing `</ONIXMessage>` and balanced `Product` opening/closing tags before it can be downloaded or delivered. The manager download path refuses to send XML after stray output has already started and retains an exact `Content-Length` header.
 
 Pricing logic is unchanged and remains sourced from OMP: free titles emit `UnpricedItemType 01`, while positive market prices emit a `Price` composite with amount and currency. No publisher-specific price is hard-coded.
-
