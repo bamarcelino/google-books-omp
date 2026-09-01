@@ -1,3 +1,11 @@
+## 0.1.2.13 - 2026-09-01
+
+- Resolves newly ingested Google Books records through the public `vid=ISBN` bibliographic page when `volumes.list?q=isbn:` still returns no item.
+- Accepts the resolved Volume ID only when the Google Books bibliographic table contains the exact normalized ISBN-13/ISBN-10 equivalent; unrelated pages cannot be linked.
+- Recovers an exact public match even after a Books API quota failure and removes the quota-heavy plain-ISBN/title list-query sequence, bounding discovery to far fewer API calls.
+- Records a per-ISBN explanation for every unresolved book and guarantees a class/code fallback when an exception has an empty message, preventing blank execution details.
+- Bumps the plugin, public/dashboard assets and Google Books API User-Agent to 0.1.2.13; no database migration.
+
 ## 0.1.2.12 - 2026-09-01
 
 - Adds safe fallback discovery through plain canonical ISBN and exact-title Books API queries when the public `isbn:` field index has not caught up with a newly ingested Partner Center record.

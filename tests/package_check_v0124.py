@@ -13,22 +13,22 @@ source = source_path.read_text(encoding='utf-8')
 # packages can still be inspected with this maintenance wrapper.
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.3 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.12 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.13 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.3', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.12', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.13', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.12')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.13')
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.5 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.12 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.13 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.5', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.12', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.13', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.12')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.13')
 
 extra = r'''
 # 0.1.2.4+ live-onboarding regressions

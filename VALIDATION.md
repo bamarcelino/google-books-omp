@@ -1,4 +1,4 @@
-# Google Books Integration for OMP 0.1.2.12 - Validation Report
+# Google Books Integration for OMP 0.1.2.13 - Validation Report
 
 **Target:** Open Monograph Press 3.5.x, validated against OMP/PKP 3.5.0-5 public contracts  
 **Author:** Bruno Cesar Alves Marcelino  
@@ -7,7 +7,7 @@
 
 ## Scope
 
-Release 0.1.2.12 retains the transport-neutral delivery layer, encrypted API/transport secrets, strict Google ONIX validation and organized-volume `A01` compatibility. It adds delayed-index Books API discovery fallbacks that still require an exact ISBN in every matched Volume. The public Books action uses the canonical Volume-ID address independently from the API-confirmed Google Play acquisition link.
+Release 0.1.2.13 retains the transport-neutral delivery layer, encrypted API/transport secrets, strict Google ONIX validation and organized-volume `A01` compatibility. It adds an exact-ISBN public Books resolver for records missing from the API search index, reduces quota-heavy list requests, and makes every unresolved/failure run detail informative. The public Books action uses the canonical Volume-ID address independently from the Google Play acquisition link.
 
 Validation covers plugin code, OMP-facing contracts, identifier normalization, Google Books discovery behavior, ONIX generation, delivery-manifest generation, reversible outbound-secret protection, database state, transport configuration, localization, queue integration and distribution archives. It does not claim that Google has accepted a real publisher feed or credentials; Google-side onboarding remains external.
 
@@ -92,6 +92,8 @@ API discovery checks every unique valid ISBN while feed identity prefers primary
 
 Google Books API discovery requires a published OMP submission, a valid detectable ISBN, and a configured API key. It does not require an enabled delivery transport, collection code, PDF/EPUB asset, price, Sales Rights entry, or remote transport credential.
 
+The primary global `volumes.list?q=isbn:` query remains authoritative when it returns an exact candidate. When that search index is delayed, the client requests Google's public `books?vid=ISBN...` bibliographic page and extracts its Volume ID only if the page's ISBN metadata row normalizes to the OMP ISBN. Regression fixtures verify successful delayed-index resolution, exact-ISBN rejection, recovery after a simulated API quota failure, and the absence of the former plain-ISBN/title list-query burst. Unresolved products and failures also produce non-empty per-submission run details.
+
 Delivery eligibility remains separate. A historical title may therefore be linked to an existing Google Volume while remaining ineligible for publisher delivery for a clearly reported data reason.
 
 ## Google ONIX and content validation
@@ -113,7 +115,7 @@ Delivery-manifest tests additionally verify the expected `onix/validate`, `<COLL
 
 ## Public OMP book page
 
-Exact, unambiguous Google Volume IDs remain eligible for the public Google Books action. The public template no longer exposes the repeated ISBN or internal Volume ID. The Books action is built as `https://books.google.com/books?id=<VolumeID>` because Google's `volumeInfo.infoLink` can itself point to the Play Store. A separate Google Play Books action is rendered only for an API-confirmed e-book with a safe `saleInfo.buyLink` acquisition URL and eligible `saleability`. OMP 3.5.0-5 invokes `Templates::Catalog::Book::Details` after its publication-format identifiers/DOI block, and the plugin retains `Hook::SEQUENCE_CORE` so the action block appears before the normal citation widget without a core template override. A scoped, versioned frontend stylesheet provides responsive buttons, keyboard focus and decorative inline vector icons.
+Exact, unambiguous Google Volume IDs remain eligible for the public Google Books action. The public template no longer exposes the repeated ISBN or internal Volume ID. The Books action is built as `https://books.google.com/books?id=<VolumeID>` because Google's `volumeInfo.infoLink` can itself point to the Play Store. A separate Google Play Books action is rendered only when either the API or an exact-ISBN public resolver exposes a safe Play acquisition URL and confirms an e-book. OMP 3.5.0-5 invokes `Templates::Catalog::Book::Details` after its publication-format identifiers/DOI block, and the plugin retains `Hook::SEQUENCE_CORE` so the action block appears before the normal citation widget without a core template override. A scoped, versioned frontend stylesheet provides responsive buttons, keyboard focus and decorative inline vector icons.
 
 ## Dashboard, localization and publisher neutrality
 
@@ -136,7 +138,7 @@ The final source tree passes:
 
 | Suite | Result |
 | --- | ---: |
-| Core behavior, identifiers, Google matching, auth/secret and delivery contracts | 236/236 |
+| Core behavior, identifiers, Google matching, auth/secret and delivery contracts | 239/239 |
 | Large ONIX feed | 8/8 |
 | Google commercial validation profile | 22/22 |
 | Strict Google Play profile | 10/10 |
@@ -145,10 +147,10 @@ The final source tree passes:
 | OMP mapper/DAO/code-24 ISBN regression | 27/27 |
 | Plugin-settings migration | 16/16 |
 | SFTP endpoint normalization and staged diagnostic regression | 28/28 |
-| Package, locale, security and source contracts | 262/262 |
+| Package, locale, security and source contracts | 265/265 |
 | OMP 3.5 compatibility smoke suite | 55/55 |
 | Dashboard POST/persistence/queue smoke suite | 40/40 |
-| **Total behavioral/contract assertions** | **756/756** |
+| **Total behavioral/contract assertions** | **762/762** |
 
 In addition, every PHP file in the release is linted with `php -l`; any syntax error fails packaging.
 

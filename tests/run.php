@@ -157,60 +157,63 @@ $partnerFallbackClient = new GoogleBooksApiClient('apiKey', 'partnerId', static 
             'industryIdentifiers' => [['type' => 'ISBN_13', 'identifier' => '9780306406157']],
         ],
     ]]];
-});
+}, static fn (): string => '');
 $partnerMatch = $partnerFallbackClient->findByIsbn($canonical);
 check($partnerMatch->found && $partnerMatch->volumeId === 'partnerVolume', 'Partner-restricted fallback discovery failed');
 check((bool) array_filter($fallbackRequests, static fn (array $request): bool => ($request[1]['partner'] ?? null) === 'partnerId'), 'Google Books partner fallback query was not issued');
 
-$plainIsbnRequests = [];
-$plainIsbnClient = new GoogleBooksApiClient(null, null, static function (string $url, array $query) use (&$plainIsbnRequests, $canonical): array {
-    $plainIsbnRequests[] = [$url, $query];
-    if (($query['q'] ?? null) !== $canonical) {
+$resolverHtml = '<html><body>'
+    . '<h1 class="booktitle"><span>Recently indexed test book</span></h1>'
+    . '<table id="metadata_content_table"><tr class="metadata_row">'
+    . '<td class="metadata_label"><span>ISBN</span></td>'
+    . '<td class="metadata_value"><span>0-306-40615-2, 978-0-306-40615-7</span></td>'
+    . '</tr></table>'
+    . '<a href="https://play.google.com/store/books/details?id=resolverVolume123&amp;source=gbs_atb">Play</a>'
+    . '<script>_OC_Run({}, {"volume_id":"resolverVolume123","is_ebook":true}, {});</script>'
+    . '</body></html>';
+$resolverRequests = [];
+$resolverApiRequests = [];
+$resolverClient = new GoogleBooksApiClient(
+    null,
+    null,
+    static function (string $url, array $query) use (&$resolverApiRequests): array {
+        $resolverApiRequests[] = [$url, $query];
         return [];
-    }
-    return ['items' => [[
-        'id' => 'plainIsbnVolume',
-        'volumeInfo' => [
-            'title' => 'Recently ingested book',
-            'industryIdentifiers' => [['type' => 'ISBN_13', 'identifier' => $canonical]],
-        ],
-    ]]];
-});
-$plainIsbnMatch = $plainIsbnClient->findByIsbn($canonical, 'Recently ingested book');
-check($plainIsbnMatch->found && $plainIsbnMatch->volumeId === 'plainIsbnVolume', 'Plain-ISBN fallback did not recover an exact recently ingested Volume');
-check(count($plainIsbnRequests) === 3 && ($plainIsbnRequests[2][1]['q'] ?? null) === $canonical, 'Plain-ISBN fallback was not issued after the indexed ISBN-13/ISBN-10 queries');
+    },
+    static function (string $url) use (&$resolverRequests, $resolverHtml): string {
+        $resolverRequests[] = $url;
+        return $resolverHtml;
+    },
+);
+$resolverMatch = $resolverClient->findByIsbn($canonical, 'Recently indexed test book');
+check($resolverMatch->found && $resolverMatch->volumeId === 'resolverVolume123', 'Public Google Books ISBN resolver did not recover an exact newly indexed Volume');
+check($resolverMatch->matchedIdentifiers !== [] && $resolverMatch->isEbook === true && $resolverMatch->buyLink !== null, 'Public ISBN resolver did not retain exact identifiers or Play availability');
+check(count($resolverRequests) === 1 && str_contains($resolverRequests[0], 'vid=ISBN9780306406157'), 'Public ISBN resolver URL was not canonicalized');
+check(count($resolverApiRequests) === 1, 'Public ISBN resolver did not stop redundant API list fallbacks after an exact match');
 
-$titleFallbackRequests = [];
-$titleFallbackClient = new GoogleBooksApiClient(null, null, static function (string $url, array $query) use (&$titleFallbackRequests, $canonical): array {
-    $titleFallbackRequests[] = [$url, $query];
-    if (($query['q'] ?? null) !== 'intitle:"A recently indexed organized volume: stories for sleep"') {
-        return [];
-    }
-    return ['items' => [[
-        'id' => 'delayedTitleVolume',
-        'volumeInfo' => [
-            'title' => 'A recently indexed organized volume: stories for sleep',
-            'industryIdentifiers' => [['type' => 'ISBN_13', 'identifier' => $canonical]],
-        ],
-    ]]];
-});
-$titleFallbackMatch = $titleFallbackClient->findByIsbn($canonical, 'A recently indexed organized volume: stories for sleep');
-check($titleFallbackMatch->found && $titleFallbackMatch->volumeId === 'delayedTitleVolume', 'Title-query fallback did not recover an exact ISBN-confirmed Volume');
-check(($titleFallbackRequests[3][1]['q'] ?? null) === 'intitle:"A recently indexed organized volume: stories for sleep"', 'Title-query fallback order or query normalization is wrong');
+$quotaRecoveryClient = new GoogleBooksApiClient(
+    'apiKey',
+    null,
+    static function (): array {
+        throw new RuntimeException('simulated HTTP 429');
+    },
+    static fn (): string => $resolverHtml,
+);
+$quotaRecoveryMatch = $quotaRecoveryClient->findByIsbn($canonical);
+check($quotaRecoveryMatch->found && $quotaRecoveryMatch->volumeId === 'resolverVolume123', 'Public ISBN resolver did not recover an exact Volume after an API quota failure');
 
-$titleFalsePositiveClient = new GoogleBooksApiClient(null, null, static function (string $url, array $query): array {
-    if (!str_starts_with((string) ($query['q'] ?? ''), 'intitle:')) {
-        return [];
-    }
-    return ['items' => [[
-        'id' => 'sameTitleWrongIsbn',
-        'volumeInfo' => [
-            'title' => 'The same title',
-            'industryIdentifiers' => [['type' => 'ISBN_13', 'identifier' => '9780131103627']],
-        ],
-    ]]];
-});
-check($titleFalsePositiveClient->findByIsbn($canonical, 'The same title')->found === false, 'Title fallback linked a Volume whose industryIdentifiers did not contain the exact ISBN');
+$wrongResolverHtml = str_replace(
+    ['0-306-40615-2', '978-0-306-40615-7'],
+    ['0-13-110362-8', '978-0-13-110362-7'],
+    $resolverHtml,
+);
+$wrongResolverClient = new GoogleBooksApiClient(
+    null,
+    null,
+    static fn (): array => [],
+    static fn (): string => $wrongResolverHtml,
+);
+check($wrongResolverClient->findByIsbn($canonical)->found === false, 'Public ISBN resolver accepted a Google Books page whose bibliographic ISBN did not match');
 
 $nonMatchClient = new GoogleBooksApiClient(null, null, static function (): array {
     return [
@@ -223,7 +226,7 @@ $nonMatchClient = new GoogleBooksApiClient(null, null, static function (): array
             ],
         ]],
     ];
-});
+}, static fn (): string => '');
 check($nonMatchClient->findByIsbn($canonical)->found === false, 'Discovery accepted a non-matching ISBN result');
 
 $unsafeUrlClient = new GoogleBooksApiClient(null, null, static function (): array {
@@ -246,7 +249,7 @@ $missingIdClient = new GoogleBooksApiClient(null, null, static function (): arra
             'industryIdentifiers' => [['type' => 'ISBN_13', 'identifier' => '9780306406157']],
         ],
     ]]];
-});
+}, static fn (): string => '');
 check($missingIdClient->findByIsbn($canonical)->found === false, 'Google discovery linked an item without a Volume ID');
 
 $ambiguousClient = new GoogleBooksApiClient(null, null, static function (): array {
@@ -262,7 +265,7 @@ check($ambiguousMatch->found === false && $ambiguousMatch->ambiguous === true &&
 
 $apiErrorClient = new GoogleBooksApiClient('SUPERSECRETAPIKEY', null, static function (): array {
     throw new RuntimeException('request failed at https://www.googleapis.com/books/v1/volumes?key=SUPERSECRETAPIKEY');
-});
+}, static fn (): string => '');
 try {
     $apiErrorClient->findByIsbn($canonical);
     check(false, 'Google Books API transport failure was not raised');
@@ -590,8 +593,11 @@ check(str_contains($syncSource, 'no valid Google collection code is configured f
 check(str_contains($syncSource, 'retireMissingProducts') && str_contains($syncSource, "'feedChanged'"), 'Submission synchronization does not reconcile stale ISBNs or signal feed changes');
 check(str_contains($syncSource, 'retireMissingSubmissions'), 'Full catalog synchronization does not reconcile unpublished books');
 check(substr_count($syncSource, "\$result['retryable']++") >= 2 && str_contains($syncSource, 'markDiscoveryError'), 'Transient or not-yet-indexed Google checks are not consistently marked retryable');
+check(str_contains($syncSource, "'details' => []") && str_contains($syncSource, 'no exact Volume returned'), 'Not-found discovery does not produce an informative per-ISBN run detail');
 $apiSource = file_get_contents(dirname(__DIR__) . '/classes/Api/GoogleBooksApiClient.php');
 check(str_contains($apiSource, 'global lookup') && str_contains($apiSource, '$withPartner && $this->partnerId'), 'Google discovery may be partner-restricted before checking the global catalogue');
+$catalogDiscoveryJobSource = file_get_contents(dirname(__DIR__) . '/classes/Jobs/CatalogDiscoveryJob.php');
+check(str_contains($catalogDiscoveryJobSource, 'failed without a diagnostic message') && str_contains($syncSource, 'returned no diagnostic message'), 'Blank discovery exceptions can still produce empty dashboard run details');
 
 $mapperSource = file_get_contents(dirname(__DIR__) . '/classes/Sync/OmpBookMapper.php');
 check(str_contains($mapperSource, "method_exists(\$format, 'getIsAvailable')"), 'Mapper does not reject unavailable OMP publication formats');

@@ -19,18 +19,24 @@ use Throwable;
 final class GoogleBooksApiClient
 {
     private const BASE_URL = 'https://www.googleapis.com/books/v1/volumes';
+    private const PUBLIC_ISBN_URL = 'https://books.google.com/books';
     private const TRANSIENT_HTTP = [429, 500, 502, 503, 504];
     private const MAX_ATTEMPTS = 4;
 
     /** @var null|callable(string,array<string,mixed>):array<string,mixed> */
     private $transport;
 
+    /** @var null|callable(string):array{url?:string,body?:string}|string */
+    private $publicResolverTransport;
+
     public function __construct(
         private ?string $apiKey = null,
         private ?string $partnerId = null,
         ?callable $transport = null,
+        ?callable $publicResolverTransport = null,
     ) {
         $this->transport = $transport;
+        $this->publicResolverTransport = $publicResolverTransport;
     }
 
     public function findByIsbn(string $rawIsbn, ?string $title = null): GoogleBooksMatch
@@ -42,45 +48,37 @@ final class GoogleBooksApiClient
         $isbn10 = IdentifierNormalizer::isbn13To10($isbn13);
         $equivalents = array_values(array_unique(array_filter([$isbn13, $isbn10])));
 
-        // Query the canonical ISBN-13 first. Google usually returns both ISBN-13
-        // and ISBN-10 industryIdentifiers on the same Volume, so immediately
-        // querying both identifiers doubles API traffic on large catalogues
-        // without improving normal-case matching. ISBN-10 is a fallback only.
-        $candidates = $this->searchOne('isbn:' . $isbn13, $equivalents, false);
+        // Query the canonical ISBN-13 through a global lookup first. A
+        // transient API quota failure does not prevent the public ISBN resolver
+        // below from recovering an exact Google Books record without issuing
+        // several more list requests.
+        $apiFailure = null;
+        try {
+            $candidates = $this->searchOne('isbn:' . $isbn13, $equivalents, false);
+        } catch (RuntimeException $e) {
+            $apiFailure = $e;
+            $candidates = [];
+        }
+
+        // Google Books' public ISBN resolver can expose a newly ingested Volume
+        // before volumes.list indexes q=isbn:. The resolver is accepted only
+        // when its bibliographic table contains an exact normalized ISBN.
+        if ($candidates === []) {
+            $candidates = $this->searchPublicIsbnPage($isbn13, $equivalents);
+        }
+
+        if ($candidates === [] && $apiFailure !== null) {
+            throw $apiFailure;
+        }
+
+        // Retain bounded compatibility fallbacks without the former sequence
+        // of plain-ISBN and title list queries that could exhaust per-minute
+        // API quota across a large catalogue.
         if ($candidates === [] && $isbn10 !== null) {
             $candidates = $this->searchOne('isbn:' . $isbn10, $equivalents, false);
         }
-
-        // The partner parameter restricts results. It is therefore only a
-        // fallback after a global lookup, so an existing public record cannot
-        // be hidden merely because it is not returned under the configured
-        // Partner ID.
         if ($candidates === [] && $this->partnerId) {
             $candidates = $this->searchOne('isbn:' . $isbn13, $equivalents, true);
-            if ($candidates === [] && $isbn10 !== null) {
-                $candidates = $this->searchOne('isbn:' . $isbn10, $equivalents, true);
-            }
-        }
-
-        // Newly ingested Partner Center records can be visible on the Books or
-        // Play storefront before the public volumes.list ISBN field index is
-        // complete. Broader official list queries can still surface the Volume.
-        // searchOne() always checks industryIdentifiers against the canonical
-        // ISBN equivalents, so neither a plain-text nor a title result can be
-        // linked on title similarity alone.
-        if ($candidates === []) {
-            $candidates = $this->searchOne($isbn13, $equivalents, false);
-        }
-        if ($candidates === [] && $this->partnerId) {
-            $candidates = $this->searchOne($isbn13, $equivalents, true);
-        }
-
-        $titleQuery = $this->titleSearchQuery($title);
-        if ($candidates === [] && $titleQuery !== null) {
-            $candidates = $this->searchOne($titleQuery, $equivalents, false);
-        }
-        if ($candidates === [] && $titleQuery !== null && $this->partnerId) {
-            $candidates = $this->searchOne($titleQuery, $equivalents, true);
         }
 
         if ($candidates === []) {
@@ -169,24 +167,96 @@ final class GoogleBooksApiClient
         return $candidates;
     }
 
-    private function titleSearchQuery(?string $title): ?string
+    /**
+     * @param string[] $equivalents
+     * @return array<string,array{volumeId:string,selfLink:?string,infoLink:?string,previewLink:?string,matched:array<int,string>,title:?string,publisher:?string,buyLink:?string,saleability:?string,isEbook:?bool}>
+     */
+    private function searchPublicIsbnPage(string $isbn13, array $equivalents): array
     {
-        if ($title === null) {
-            return null;
+        $url = self::PUBLIC_ISBN_URL . '?vid=ISBN' . rawurlencode($isbn13);
+        try {
+            if ($this->publicResolverTransport !== null) {
+                $response = ($this->publicResolverTransport)($url);
+                $html = is_array($response) ? (string) ($response['body'] ?? '') : (string) $response;
+            } else {
+                $client = new Client([
+                    'timeout' => 12,
+                    'connect_timeout' => 5,
+                    'http_errors' => true,
+                    'allow_redirects' => true,
+                    'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.13'],
+                ]);
+                $html = (string) $client->get($url)->getBody();
+            }
+        } catch (Throwable) {
+            return [];
+        }
+        if ($html === '') {
+            return [];
         }
 
-        $title = strip_tags(html_entity_decode($title, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-        $title = preg_replace('/[\\x00-\\x1F\\x7F"\\\\]+/u', ' ', $title) ?? '';
-        $title = trim(preg_replace('/\\s+/u', ' ', $title) ?? '');
-        if ($title === '') {
-            return null;
+        $metadataIsbns = [];
+        if (preg_match(
+            '~<td[^>]*class=["\']metadata_label["\'][^>]*>.*?ISBN.*?</td>\\s*<td[^>]*class=["\']metadata_value["\'][^>]*>(.*?)</td>~is',
+            $html,
+            $metadataMatch,
+        ) === 1) {
+            $metadataText = html_entity_decode(strip_tags($metadataMatch[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            foreach (preg_split('/\\s*[,;|]\\s*/u', $metadataText) ?: [] as $identifier) {
+                foreach (IdentifierNormalizer::isbnEquivalents($identifier) as $normalized) {
+                    $metadataIsbns[] = $normalized;
+                }
+            }
+        }
+        $metadataIsbns = array_values(array_unique($metadataIsbns));
+        $matched = array_values(array_intersect($equivalents, $metadataIsbns));
+        if ($matched === []) {
+            return [];
         }
 
-        $title = function_exists('mb_substr')
-            ? mb_substr($title, 0, 180, 'UTF-8')
-            : substr($title, 0, 180);
+        $volumeId = '';
+        if (preg_match('/["\']volume_id["\']\\s*:\\s*["\']([A-Za-z0-9_-]{6,64})["\']/', $html, $volumeMatch) === 1) {
+            $volumeId = $volumeMatch[1];
+        } elseif (preg_match(
+            '~play\\.google\\.com/store/books/details[^"\'<>]*?(?:\\?|&amp;|&)id=([A-Za-z0-9_-]{6,64})~i',
+            $html,
+            $volumeMatch,
+        ) === 1) {
+            $volumeId = $volumeMatch[1];
+        }
+        if ($volumeId === '') {
+            return [];
+        }
 
-        return 'intitle:"' . trim($title) . '"';
+        $title = null;
+        if (preg_match('~<h1[^>]*class=["\'][^"\']*booktitle[^"\']*["\'][^>]*>(.*?)</h1>~is', $html, $titleMatch) === 1) {
+            $title = trim(html_entity_decode(strip_tags($titleMatch[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8')) ?: null;
+        }
+
+        $buyLink = null;
+        if (preg_match(
+            '~href=["\'](https://play\\.google\\.com/store/books/details[^"\'<>]+)["\']~i',
+            $html,
+            $buyMatch,
+        ) === 1) {
+            $buyLink = $this->safeUrl(html_entity_decode($buyMatch[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        }
+
+        $booksUrl = 'https://books.google.com/books?id=' . rawurlencode($volumeId);
+        $candidates = [[
+            'volumeId' => $volumeId,
+            'selfLink' => self::BASE_URL . '/' . rawurlencode($volumeId),
+            'infoLink' => $booksUrl,
+            'previewLink' => $booksUrl,
+            'matched' => $matched,
+            'title' => $title,
+            'publisher' => null,
+            'buyLink' => $buyLink,
+            'saleability' => $buyLink !== null ? 'FOR_SALE' : null,
+            'isEbook' => str_contains($html, '"is_ebook":true') ? true : ($buyLink !== null ? true : null),
+        ]];
+
+        return [$volumeId => $candidates[0]];
     }
 
     private function safeUrl(?string $url): ?string
@@ -224,7 +294,7 @@ final class GoogleBooksApiClient
             'timeout' => 12,
             'connect_timeout' => 5,
             'http_errors' => true,
-            'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.12'],
+            'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.13'],
         ]);
 
         $last = null;

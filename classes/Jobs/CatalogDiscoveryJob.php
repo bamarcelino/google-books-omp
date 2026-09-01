@@ -90,12 +90,21 @@ final class CatalogDiscoveryJob extends GoogleBooksJob
                 foreach (['linked', 'notFound', 'retryable', 'failed', 'skipped'] as $key) {
                     $counters[$key] += $result[$key];
                 }
+                foreach (($result['details'] ?? []) as $detail) {
+                    $detail = trim((string) $detail);
+                    $errors[] = 'Submission ' . $submissionId . ': '
+                        . ($detail !== '' ? $detail : 'Discovery completed without a diagnostic detail.');
+                }
                 foreach ($result['errors'] as $error) {
-                    $errors[] = 'Submission ' . $submissionId . ': ' . $error;
+                    $error = trim((string) $error);
+                    $errors[] = 'Submission ' . $submissionId . ': '
+                        . ($error !== '' ? $error : 'Discovery failed without a diagnostic message.');
                 }
             } catch (Throwable $e) {
                 $counters['failed']++;
-                $errors[] = 'Submission ' . $submissionId . ': ' . $e->getMessage();
+                $message = trim($e->getMessage());
+                $errors[] = 'Submission ' . $submissionId . ': '
+                    . ($message !== '' ? $message : get_class($e) . ' failed without a diagnostic message (code ' . $e->getCode() . ').');
             }
 
             // Avoid sending a large legacy catalogue to the public Books API

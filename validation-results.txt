@@ -1,7 +1,7 @@
-Google Books Integration for OMP 0.1.2.12 - Final validation
+Google Books Integration for OMP 0.1.2.13 - Final validation
 Date: 2026-09-01
 
-OK 236 core behavior/auth/secret/delivery assertions
+OK 239 core behavior/auth/secret/delivery assertions
 OK 8 large ONIX feed assertions
 OK 22 Google validation commercial-profile assertions
 OK 10 strict Google Play profile assertions
@@ -10,10 +10,10 @@ OK 43 repository assertions, including Google Play availability and delivery-fil
 OK 27 mapper/DAO/code-24 ISBN/contributor fallback assertions
 OK 16 settings migration assertions
 OK 28 SFTP endpoint/diagnostic assertions
-OK 262 package/locale/security/source-contract checks
+OK 265 package/locale/security/source-contract checks
 OK 55 OMP 3.5 compatibility smoke assertions
 OK 40 dashboard operation/persistence/queue smoke assertions
-OK 756/756 total behavioral/contract assertions
+OK 762/762 total behavioral/contract assertions
 OK concurrent HTTPS pull and push/staging transport availability
 OK real ONIX validation sample: selected published anchor plus other real published OMP products, up to 10 unique ISBN records
 OK validation sample does not fabricate ISBNs or synthetic BookMetadata products
@@ -26,7 +26,9 @@ OK Google Play Books contributor profile: exactly one primary ContributorRole pe
 OK public book page omits repeated ISBN/Volume ID and renders responsive Books/Play actions
 OK Books action uses canonical books.google.com Volume-ID URL even when API infoLink points to Google Play
 OK Google Play Books action requires API-confirmed buyLink, e-book status and eligible saleability
-OK delayed-index discovery tries plain ISBN and exact-title queries while still requiring an exact returned ISBN
+OK delayed-index discovery resolves the public Google Books ISBN page only when its bibliographic ISBN is exact
+OK quota-heavy plain-ISBN/title API list fallbacks are removed and public resolution can recover after API quota failure
+OK unresolved and failed discovery records always produce non-empty per-submission execution details
 OK free Google Play products retain UnpricedItemType 01 and never emit a zero PriceAmount
 OK authorless organized volumes promote every B01/B13/B21 organizer to a single Google-facing A01
 OK mixed author/editor records preserve original editor roles and OMP source metadata remains unchanged

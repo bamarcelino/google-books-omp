@@ -153,12 +153,20 @@ check("HTTP_IF_MODIFIED_SINCE" in feed and '304 Not Modified' in feed, 'conditio
 
 api = (ROOT / 'classes/Api/GoogleBooksApiClient.php').read_text(encoding='utf-8')
 check("searchOne('isbn:' . $isbn13" in api and "searchOne('isbn:' . $isbn10" in api, 'Google Books exact ISBN queries are missing')
-check("searchOne($isbn13, $equivalents" in api and 'titleSearchQuery' in api and "return 'intitle:" in api,
-      'Google Books delayed-index discovery fallbacks are missing')
+check('PUBLIC_ISBN_URL' in api and 'searchPublicIsbnPage' in api and 'metadata_label' in api and 'volume_id' in api,
+      'Google Books public ISBN resolver is missing')
+check("searchOne($isbn13, $equivalents" not in api and 'titleSearchQuery' not in api,
+      'quota-heavy plain-ISBN/title API fallbacks are still active')
 check('IdentifierNormalizer::isbnEquivalents' in api, 'Google Books identifier normalization missing')
 check('ambiguous: true' in api, 'multiple exact Google Volume detection missing')
 check('RequestException' in api and "'HTTP ' . $last->getResponse()->getStatusCode()" in api, 'Google API error sanitization contract missing')
 check("GoogleBooksIntegrationForOMP/0.1.2.5" in api, 'Google Books API User-Agent release mismatch')
+catalog_discovery_job = (ROOT / 'classes/Jobs/CatalogDiscoveryJob.php').read_text(encoding='utf-8')
+sync_discovery = (ROOT / 'classes/Sync/GoogleBooksSyncService.php').read_text(encoding='utf-8')
+check("'details' => []" in sync_discovery and 'no exact Volume returned' in sync_discovery,
+      'not-found discovery results do not provide per-ISBN run details')
+check('failed without a diagnostic message' in catalog_discovery_job and 'returned no diagnostic message' in sync_discovery,
+      'empty discovery exceptions can still produce blank dashboard logs')
 
 sftp_endpoint_source = (ROOT / 'classes/Delivery/SftpEndpoint.php').read_text(encoding='utf-8')
 sftp_source = (ROOT / 'classes/Delivery/SftpTransport.php').read_text(encoding='utf-8')

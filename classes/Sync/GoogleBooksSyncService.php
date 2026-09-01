@@ -41,7 +41,7 @@ final class GoogleBooksSyncService
      * currently feed-eligible. A missing proof file, price, sales-rights row,
      * collection code or disabled Google feed must never prevent discovery.
      *
-     * @return array{products:int,linked:int,notFound:int,ambiguous:int,retryable:int,failed:int,skipped:int,errors:array<int,string>}
+     * @return array{products:int,linked:int,notFound:int,ambiguous:int,retryable:int,failed:int,skipped:int,details:array<int,string>,errors:array<int,string>}
      */
     public function discoverSubmission(Submission $submission, object $context): array
     {
@@ -53,6 +53,7 @@ final class GoogleBooksSyncService
             'retryable' => 0,
             'failed' => 0,
             'skipped' => 0,
+            'details' => [],
             'errors' => [],
         ];
 
@@ -95,11 +96,17 @@ final class GoogleBooksSyncService
                 } else {
                     $result['notFound']++;
                     $result['retryable']++;
+                    $result['details'][] = $book->isbn13
+                        . ': no exact Volume returned after the Books API ISBN lookup, public Google Books ISBN resolver, ISBN-10 fallback and configured Partner lookup.';
                 }
             } catch (Throwable $e) {
                 $result['failed']++;
                 $result['retryable']++;
-                $message = $book->isbn13 . ': Google Books discovery failed - ' . $e->getMessage();
+                $reason = trim($e->getMessage());
+                if ($reason === '') {
+                    $reason = get_class($e) . ' returned no diagnostic message (code ' . $e->getCode() . ').';
+                }
+                $message = $book->isbn13 . ': Google Books discovery failed - ' . $reason;
                 $result['errors'][] = $message;
                 try {
                     $this->repository->markDiscoveryError($book, $message);
@@ -271,8 +278,15 @@ final class GoogleBooksSyncService
                 foreach (['linked', 'notFound', 'retryable', 'failed', 'skipped'] as $key) {
                     $counters[$key] += $result[$key];
                 }
+                foreach (($result['details'] ?? []) as $detail) {
+                    $detail = trim((string) $detail);
+                    $errors[] = 'Submission ' . $submission->getId() . ': '
+                        . ($detail !== '' ? $detail : 'Discovery completed without a diagnostic detail.');
+                }
                 foreach ($result['errors'] as $error) {
-                    $errors[] = 'Submission ' . $submission->getId() . ': ' . $error;
+                    $error = trim((string) $error);
+                    $errors[] = 'Submission ' . $submission->getId() . ': '
+                        . ($error !== '' ? $error : 'Discovery failed without a diagnostic message.');
                 }
             }
             $status = $counters['failed'] > 0 ? 'completed_with_errors' : 'completed';
