@@ -22,7 +22,12 @@ use Throwable;
 
 final class OnixEnrichmentService
 {
-    public function enrich(BookMetadata $book, object $submission, object $context): BookMetadata
+    public function enrich(
+        BookMetadata $book,
+        object $submission,
+        object $context,
+        ?string $defaultBisacCode = null,
+    ): BookMetadata
     {
         $publication = method_exists($submission, 'getCurrentPublication')
             ? $submission->getCurrentPublication()
@@ -36,7 +41,7 @@ final class OnixEnrichmentService
             $book->description = $this->firstLocalizedText($publication, 'abstract', $locale);
         }
 
-        $book->subjects = $this->subjects($publication, $locale);
+        $book->subjects = $this->subjects($publication, $locale, $defaultBisacCode);
         [$format, $formats] = $this->formatForBook($publication, $context, $book->isbn13);
         $book->extents = $format ? $this->extents($format) : [];
         $book->relatedProducts = $this->relatedProducts($formats, $book->isbn13);
@@ -45,7 +50,7 @@ final class OnixEnrichmentService
     }
 
     /** @return array<int,array{scheme:string,code:?string,heading:?string}> */
-    private function subjects(object $publication, string $locale): array
+    private function subjects(object $publication, string $locale, ?string $defaultBisacCode): array
     {
         $subjects = [];
 
@@ -60,6 +65,13 @@ final class OnixEnrichmentService
                     continue;
                 }
                 $subjects[] = ['scheme' => '10', 'code' => $code, 'heading' => null];
+            }
+        }
+
+        if ($subjects === []) {
+            $defaultBisacCode = strtoupper(preg_replace('/\s+/', '', trim((string) $defaultBisacCode)) ?? '');
+            if (preg_match('/^[A-Z]{3}[0-9]{6}$/', $defaultBisacCode)) {
+                $subjects[] = ['scheme' => '10', 'code' => $defaultBisacCode, 'heading' => null];
             }
         }
 

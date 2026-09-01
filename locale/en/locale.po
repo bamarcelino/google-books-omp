@@ -183,6 +183,12 @@ msgstr "Assume worldwide non-exclusive sales rights for free titles when OMP has
 msgid "plugins.generic.googleBooks.defaultWorldwideRightsForFreeDescription"
 msgstr "Disabled by default. Enable only if the publisher actually holds worldwide rights. The plugin otherwise requires explicit OMP Sales Rights before exposing a title in the Google rights feed."
 
+msgid "plugins.generic.googleBooks.defaultBisacCode"
+msgstr "Default BISAC category"
+
+msgid "plugins.generic.googleBooks.defaultBisacCodeDescription"
+msgstr "Nine-character BISAC code used only when the book has no valid book-specific BISAC in OMP. Example: SOC000000. Leave blank to avoid applying a default category."
+
 msgid "plugins.generic.googleBooks.apiKeyAlreadySet"
 msgstr "An API key is already stored. Leave this field blank to keep it."
 
@@ -374,6 +380,9 @@ msgstr "Google feed settings were saved."
 
 msgid "plugins.generic.googleBooks.message.behaviorSettingsSaved"
 msgstr "Synchronization behavior was saved."
+
+msgid "plugins.generic.googleBooks.message.invalidBisacCode"
+msgstr "The default BISAC code must contain three letters followed by six digits, for example SOC000000."
 
 msgid "plugins.generic.googleBooks.message.discoveryQueued"
 msgstr "Google Books catalogue discovery was queued in batches. The feed does not need to be enabled."

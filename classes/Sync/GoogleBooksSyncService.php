@@ -12,6 +12,7 @@ namespace APP\plugins\generic\googleBooks\classes\Sync;
 use APP\facades\Repo;
 use APP\plugins\generic\googleBooks\classes\Api\GoogleBooksApiClient;
 use APP\plugins\generic\googleBooks\classes\Onix\GoogleOnixValidator;
+use APP\plugins\generic\googleBooks\classes\Onix\OnixEnrichmentService;
 use APP\plugins\generic\googleBooks\classes\Repository\GoogleBooksStateRepository;
 use APP\plugins\generic\googleBooks\GoogleBooksPlugin;
 use APP\submission\Submission;
@@ -22,16 +23,19 @@ final class GoogleBooksSyncService
     private OmpBookMapper $mapper;
     private GoogleBooksStateRepository $repository;
     private GoogleOnixValidator $validator;
+    private OnixEnrichmentService $enrichment;
 
     public function __construct(
         private GoogleBooksPlugin $plugin,
         ?OmpBookMapper $mapper = null,
         ?GoogleBooksStateRepository $repository = null,
         ?GoogleOnixValidator $validator = null,
+        ?OnixEnrichmentService $enrichment = null,
     ) {
         $this->mapper = $mapper ?? new OmpBookMapper();
         $this->repository = $repository ?? new GoogleBooksStateRepository();
         $this->validator = $validator ?? new GoogleOnixValidator();
+        $this->enrichment = $enrichment ?? new OnixEnrichmentService();
     }
 
     /**
@@ -149,6 +153,7 @@ final class GoogleBooksSyncService
         $contextId = (int) $context->getId();
         $defaultFree = $this->plugin->boolSetting($contextId, 'defaultFreeOfCharge', false);
         $defaultWorldwideRights = $this->plugin->boolSetting($contextId, 'defaultWorldwideRightsForFree', false);
+        $defaultBisacCode = (string) $this->plugin->getSetting($contextId, 'defaultBisacCode');
 
         // Reconcile against every current ISBN, not only feed-eligible eISBNs.
         // This prevents discovery-only print ISBN records from being retired.
@@ -168,7 +173,9 @@ final class GoogleBooksSyncService
 
         $feedBooks = $this->mapper->mapSubmission($submission, $context, $defaultFree, $defaultWorldwideRights, true);
         $feedByIsbn = [];
-        foreach ($feedBooks as $book) {
+        foreach ($feedBooks as $index => $book) {
+            $book = $this->enrichment->enrich($book, $submission, $context, $defaultBisacCode);
+            $feedBooks[$index] = $book;
             $feedByIsbn[$book->isbn13] = $book;
         }
         $result['products'] = count($feedBooks);

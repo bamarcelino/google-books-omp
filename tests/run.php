@@ -10,6 +10,7 @@ use APP\plugins\generic\googleBooks\classes\Delivery\TransportCapabilities;
 use APP\plugins\generic\googleBooks\classes\Feed\BasicAuth;
 use APP\plugins\generic\googleBooks\classes\Model\BookMetadata;
 use APP\plugins\generic\googleBooks\classes\Onix\GoogleOnixBuilder;
+use APP\plugins\generic\googleBooks\classes\Onix\OnixEnrichmentService;
 use APP\plugins\generic\googleBooks\classes\Onix\GoogleOnixValidator;
 use APP\plugins\generic\googleBooks\classes\Sync\OmpBookMapper;
 use APP\plugins\generic\googleBooks\classes\Jobs\BookVerificationJob;
@@ -292,7 +293,7 @@ $book = new BookMetadata(
     '0306406152',
     'The Test Book',
     'A Subtitle',
-    [['role' => 'A01', 'roles' => ['A01'], 'name' => 'Jane Doe', 'orcid' => 'https://orcid.org/0000-0002-1825-0097']],
+    [['role' => 'A01', 'roles' => ['A01'], 'name' => 'Jane Doe', 'orcid' => 'https://orcid.org/0000-0002-1825-0097', 'biography' => 'Researcher in culture & society.']],
     'Test Publisher',
     'Test Imprint',
     'en_US',
@@ -406,6 +407,8 @@ check(str_contains($xml, '<RecordReference>9780306406157</RecordReference>'), 'O
 check(str_contains($xml, '<ProductIDType>15</ProductIDType>'), 'ONIX ISBN-13 product identifier is missing');
 check(str_contains($xml, '<ProductForm>EA</ProductForm>'), 'ONIX digital product form EA is missing');
 check(str_contains($xml, '<ProductFormDetail>E101</ProductFormDetail>') && str_contains($xml, '<ProductFormDetail>E107</ProductFormDetail>'), 'ONIX EPUB/PDF product details are incomplete');
+check(str_contains($xml, '<EditionType>DGO</EditionType>'), 'Digital-only product did not declare ONIX EditionType DGO');
+check(str_contains($xml, '<BiographicalNote>Researcher in culture &amp; society.</BiographicalNote>'), 'OMP contributor biography was not emitted as an ONIX BiographicalNote');
 check(str_contains($xml, '<CollectionIDType>02</CollectionIDType>') && str_contains($xml, '<IDValue>20493630</IDValue>'), 'ONIX normalized series ISSN is missing');
 check(str_contains($xml, '<SentDateTime>20260813T163045Z</SentDateTime>'), 'ONIX SentDateTime does not include precise UTC time');
 $enriched = clone $book;
@@ -419,6 +422,7 @@ check(str_contains($enrichedXml, '<SubjectSchemeIdentifier>10</SubjectSchemeIden
 check(!str_contains($enrichedXml, '<SubjectSchemeIdentifier>20</SubjectSchemeIdentifier>') && !str_contains($enrichedXml, '<SubjectHeadingText>culture; education</SubjectHeadingText>'), 'Unsupported free-text Subject enrichment was emitted');
 check(str_contains($enrichedXml, '<ExtentType>00</ExtentType>') && str_contains($enrichedXml, '<ExtentValue>240</ExtentValue>') && str_contains($enrichedXml, '<ExtentUnit>03</ExtentUnit>'), 'Page-count Extent enrichment is missing');
 check(str_contains($enrichedXml, '<RelatedMaterial>') && str_contains($enrichedXml, '<ProductRelationCode>06</ProductRelationCode>') && str_contains($enrichedXml, '<IDValue>9780131103627</IDValue>'), 'RelatedProduct alternative-format ISBN is missing');
+check(!str_contains($enrichedXml, '<EditionType>DGO</EditionType>'), 'Product with a related ISBN was incorrectly declared digital-original');
 check($validator->validateMetadataBook($enriched) === [], 'Validator rejected valid optional ONIX enrichments');
 check($validator->validateXml($enrichedXml) === [], 'XSD/runtime validator rejected enriched ONIX ordering or structure');
 check(str_contains($xml, '<SalesRightsType>02</SalesRightsType>') && str_contains($xml, '<RegionsIncluded>WORLD</RegionsIncluded>'), 'Google rights ONIX is missing SalesRights territory');
@@ -451,6 +455,23 @@ $translatorOnly = $promoteOrganizers->invoke($mapper, [
     ['role' => 'B06', 'roles' => ['B06'], 'name' => 'Translator Only', 'orcid' => null],
 ]);
 check(array_column($translatorOnly, 'role') === ['B06'], 'OMP mapper promoted a non-organizer contributor to A01');
+
+$enrichment = new OnixEnrichmentService();
+$subjectsMethod = new ReflectionMethod($enrichment, 'subjects');
+$emptySubjectPublication = new class {
+    public function getData(string $field, ?string $locale = null): mixed { return null; }
+    public function getLocalizedData(string $field): mixed { return null; }
+};
+$defaultSubjects = $subjectsMethod->invoke($enrichment, $emptySubjectPublication, 'pt_BR', 'soc 000000');
+check(($defaultSubjects[0]['scheme'] ?? null) === '10' && ($defaultSubjects[0]['code'] ?? null) === 'SOC000000', 'Validated default BISAC was not used when book-specific BISAC metadata was absent');
+$invalidDefaultSubjects = $subjectsMethod->invoke($enrichment, $emptySubjectPublication, 'pt_BR', 'INVALID');
+check($invalidDefaultSubjects === [], 'Invalid default BISAC leaked into ONIX subjects');
+$explicitSubjectPublication = new class {
+    public function getData(string $field, ?string $locale = null): mixed { return $field === 'bisac' ? 'EDU000000' : null; }
+    public function getLocalizedData(string $field): mixed { return null; }
+};
+$explicitSubjects = $subjectsMethod->invoke($enrichment, $explicitSubjectPublication, 'pt_BR', 'SOC000000');
+check(($explicitSubjects[0]['code'] ?? null) === 'EDU000000' && count($explicitSubjects) === 1, 'Book-specific BISAC did not take precedence over the configured default');
 
 $localizedData = new ReflectionMethod($mapper, 'localizedData');
 $localizedObject = new class {

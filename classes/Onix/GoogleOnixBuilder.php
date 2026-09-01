@@ -128,7 +128,12 @@ final class GoogleOnixBuilder
                 $xml .= "        </NameIdentifier>\n";
             }
             $xml .= Xml::element('PersonName', $contributor['name'], 4);
+            $xml .= Xml::element('BiographicalNote', $contributor['biography'] ?? null, 4);
             $xml .= "      </Contributor>\n";
+        }
+
+        if ($book->relatedProducts === []) {
+            $xml .= Xml::element('EditionType', 'DGO', 3);
         }
 
         $xml .= "      <Language>\n";

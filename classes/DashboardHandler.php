@@ -670,9 +670,18 @@ final class DashboardHandler extends \APP\handler\Handler
 
     private function persistBehaviorSettings($request, int $contextId): void
     {
+        $rawBisacCode = $request->getUserVar('defaultBisacCode');
+        if ($rawBisacCode !== null) {
+            $bisacCode = strtoupper(preg_replace('/\s+/', '', trim((string) $rawBisacCode)) ?? '');
+            if ($bisacCode !== '' && !preg_match('/^[A-Z]{3}[0-9]{6}$/', $bisacCode)) {
+                $this->redirect($request, 'invalidBisacCode');
+            }
+            $this->plugin->updateSetting($contextId, 'defaultBisacCode', $bisacCode, 'string');
+        }
         foreach (['autoSync', 'autoVerifyGoogle', 'defaultFreeOfCharge', 'defaultWorldwideRightsForFree'] as $name) {
             $this->plugin->updateSetting($contextId, $name, (bool) $request->getUserVar($name), 'bool');
         }
+        $this->plugin->bumpFeedRevision($contextId);
     }
 
     /** @return array<string,mixed> */
@@ -695,6 +704,7 @@ final class DashboardHandler extends \APP\handler\Handler
             'autoVerifyGoogle' => $this->plugin->boolSetting($contextId, 'autoVerifyGoogle', true),
             'defaultFreeOfCharge' => $this->plugin->boolSetting($contextId, 'defaultFreeOfCharge', false),
             'defaultWorldwideRightsForFree' => $this->plugin->boolSetting($contextId, 'defaultWorldwideRightsForFree', false),
+            'defaultBisacCode' => (string) $this->plugin->getSetting($contextId, 'defaultBisacCode'),
             'showPublicLink' => $this->plugin->boolSetting($contextId, 'showPublicLink', true),
             'feedEnabled' => $this->plugin->boolSetting($contextId, 'feedEnabled', false),
             'validationSubmissionId' => (int) $this->plugin->getSetting($contextId, 'validationSubmissionId'),
@@ -784,6 +794,7 @@ final class DashboardHandler extends \APP\handler\Handler
             'invalidCollectionCode' => ['plugins.generic.googleBooks.message.invalidCollectionCode', 'error'],
             'invalidFeedCredentials' => ['plugins.generic.googleBooks.message.invalidFeedCredentials', 'error'],
             'invalidImprintMap' => ['plugins.generic.googleBooks.message.invalidImprintMap', 'error'],
+            'invalidBisacCode' => ['plugins.generic.googleBooks.message.invalidBisacCode', 'error'],
             'feedConfigurationIncomplete' => ['plugins.generic.googleBooks.message.feedConfigurationIncomplete', 'error'],
             'feedNotReady' => ['plugins.generic.googleBooks.message.feedNotReady', 'error'],
             'apiKeyRequired' => ['plugins.generic.googleBooks.message.apiKeyRequired', 'error'],

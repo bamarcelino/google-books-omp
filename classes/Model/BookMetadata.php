@@ -12,7 +12,7 @@ namespace APP\plugins\generic\googleBooks\classes\Model;
 final class BookMetadata
 {
     /**
-     * @param array<int,array{role?:string,roles?:array<int,string>,name:string,orcid:?string}> $contributors
+     * @param array<int,array{role?:string,roles?:array<int,string>,name:string,orcid:?string,biography?:?string}> $contributors
      * @param array<int,array{amount:string,currency:string,territory:string}> $prices
      * @param array<int,array{type:string,countriesIncluded:array<int,string>,regionsIncluded:array<int,string>,countriesExcluded:array<int,string>,regionsExcluded:array<int,string>}> $salesRights
      * @param array<int,array{amount:string,currency:string,priceType:string,productAvailability:string,countriesIncluded:array<int,string>,regionsIncluded:array<int,string>,countriesExcluded:array<int,string>,regionsExcluded:array<int,string>}> $markets

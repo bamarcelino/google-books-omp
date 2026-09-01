@@ -46,6 +46,7 @@ final class FeedManifestService
         $contextId = (int) $context->getId();
         $defaultFree = $this->plugin->boolSetting($contextId, 'defaultFreeOfCharge', false);
         $defaultWorldwideRights = $this->plugin->boolSetting($contextId, 'defaultWorldwideRightsForFree', false);
+        $defaultBisacCode = (string) $this->plugin->getSetting($contextId, 'defaultBisacCode');
         $submissions = Repo::submission()
             ->getCollector()
             ->filterByContextIds([$contextId])
@@ -54,7 +55,7 @@ final class FeedManifestService
 
         foreach ($submissions as $submission) {
             foreach ($this->mapper->mapSubmission($submission, $context, $defaultFree, $defaultWorldwideRights) as $book) {
-                $book = $this->enrichment->enrich($book, $submission, $context);
+                $book = $this->enrichment->enrich($book, $submission, $context, $defaultBisacCode);
                 $errors = $rightsProfile ? $this->validator->validateRightsBook($book) : $this->validator->validateBook($book);
                 if ($errors !== []) {
                     continue;
@@ -109,6 +110,7 @@ final class FeedManifestService
         $contextId = (int) $context->getId();
         $defaultFree = $this->plugin->boolSetting($contextId, 'defaultFreeOfCharge', false);
         $defaultWorldwideRights = $this->plugin->boolSetting($contextId, 'defaultWorldwideRightsForFree', false);
+        $defaultBisacCode = (string) $this->plugin->getSetting($contextId, 'defaultBisacCode');
         $books = [];
 
         // Google Play validates the commercial structure in the ten-record ONIX
@@ -125,6 +127,7 @@ final class FeedManifestService
             $context,
             $defaultFree,
             $defaultWorldwideRights,
+            $defaultBisacCode,
         ): void {
             foreach ($this->mapper->mapSubmission(
                 $candidate,
@@ -133,7 +136,7 @@ final class FeedManifestService
                 $defaultWorldwideRights,
                 false,
             ) as $book) {
-                $book = $this->enrichment->enrich($book, $candidate, $context);
+                $book = $this->enrichment->enrich($book, $candidate, $context, $defaultBisacCode);
                 if ($this->validator->validateCommercialMetadataBook($book) !== []) {
                     continue;
                 }

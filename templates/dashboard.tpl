@@ -82,6 +82,9 @@
                     <label class="gb-check"><input type="checkbox" name="defaultFreeOfCharge" value="1"{if $googleBooksSettings.defaultFreeOfCharge} checked{/if}><span>{translate key="plugins.generic.googleBooks.defaultFree"}</span></label>
                     <label class="gb-check"><input type="checkbox" name="defaultWorldwideRightsForFree" value="1"{if $googleBooksSettings.defaultWorldwideRightsForFree} checked{/if}><span>{translate key="plugins.generic.googleBooks.defaultWorldwideRightsForFree"}<small>{translate key="plugins.generic.googleBooks.defaultWorldwideRightsForFreeDescription"}</small></span></label>
                 </div>
+                <div class="gb-form-grid">
+                    <div class="section gb-field"><label for="defaultBisacCode">{translate key="plugins.generic.googleBooks.defaultBisacCode"}</label><input id="defaultBisacCode" name="defaultBisacCode" type="text" maxlength="16" value="{$googleBooksSettings.defaultBisacCode|escape}" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="SOC000000"><p class="description">{translate key="plugins.generic.googleBooks.defaultBisacCodeDescription"}</p></div>
+                </div>
                 <div class="gb-form-actions"><button class="pkp_button_primary" type="submit">{translate key="common.save"}</button></div>
             </form>
         </section>

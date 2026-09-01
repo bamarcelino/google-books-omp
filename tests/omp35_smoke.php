@@ -621,6 +621,11 @@ namespace {
                 'autoVerifyGoogle' => '1',
                 'defaultFreeOfCharge' => '1',
                 'defaultWorldwideRightsForFree' => '',
+                'defaultBisacCode' => 'soc 000000',
+            ], true));
+        } elseif ($operationSmoke === 'invalid-bisac') {
+            $handler->saveBehavior([], new OperationRequest([
+                'defaultBisacCode' => 'not-a-code',
             ], true));
         } elseif ($operationSmoke === 'discover') {
             $plugin->setGoogleApiKey(1, 'api-key-value');

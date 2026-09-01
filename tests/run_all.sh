@@ -70,7 +70,11 @@ behavior_out=$(GOOGLEBOOKS_OPERATION_SMOKE=save-behavior GOOGLEBOOKS_SETTINGS_CA
 printf '%s\n' "$behavior_out" | grep -q '/press/pt_BR/googlebooks?message=behaviorSettingsSaved'
 grep -q '"name":"autoSync","value":true' "$behavior_capture"
 grep -q '"name":"autoVerifyGoogle","value":true' "$behavior_capture"
+grep -q '"name":"defaultBisacCode","value":"SOC000000"' "$behavior_capture"
 rm -f "$behavior_capture"
+
+invalid_bisac_out=$(GOOGLEBOOKS_OPERATION_SMOKE=invalid-bisac php tests/omp35_smoke.php)
+printf '%s\n' "$invalid_bisac_out" | grep -q 'message=invalidBisacCode'
 
 queue_capture=$(mktemp)
 discover_out=$(GOOGLEBOOKS_OPERATION_SMOKE=discover GOOGLEBOOKS_QUEUE_CONNECTION=sync GOOGLEBOOKS_QUEUE_CAPTURE="$queue_capture" php tests/omp35_smoke.php)
@@ -92,4 +96,4 @@ printf '%s\n' "$force_out" | grep -q '/press/pt_BR/googlebooks?message=forceQueu
 grep -q '^connection=database$' "$force_capture"
 grep -q '^delayed=1$' "$force_capture"
 rm -f "$force_capture"
-echo "OK 40 dashboard operation/persistence smoke assertions"
+echo "OK 42 dashboard operation/persistence smoke assertions"

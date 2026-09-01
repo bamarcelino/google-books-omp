@@ -53,7 +53,9 @@
           <IDValue>0000-0002-1825-0097</IDValue>
         </NameIdentifier>
         <PersonName>Jane Doe</PersonName>
+        <BiographicalNote>Researcher in culture &amp; society.</BiographicalNote>
       </Contributor>
+      <EditionType>DGO</EditionType>
       <Language>
         <LanguageRole>01</LanguageRole>
         <LanguageCode>eng</LanguageCode>

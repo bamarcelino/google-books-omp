@@ -105,6 +105,12 @@ msgstr "Asumir derechos de venta mundiales no exclusivos para títulos gratuitos
 msgid "plugins.generic.googleBooks.defaultWorldwideRightsForFreeDescription"
 msgstr "Desactivado de forma predeterminada. Actívelo solo si la editorial posee realmente derechos mundiales. De lo contrario, el plugin exige Derechos de Venta explícitos en OMP antes de exponer el título en el feed de derechos de Google."
 
+msgid "plugins.generic.googleBooks.defaultBisacCode"
+msgstr "Categoría BISAC predeterminada"
+
+msgid "plugins.generic.googleBooks.defaultBisacCodeDescription"
+msgstr "Código BISAC de nueve caracteres que se usa solo cuando el libro no tiene un BISAC válido propio en OMP. Ejemplo: SOC000000. Déjelo vacío para no aplicar una categoría predeterminada."
+
 msgid "plugins.generic.googleBooks.showPublicLink"
 msgstr "Mostrar Google Books junto a los identificadores públicos del libro después de descubrir el registro"
 
@@ -374,6 +380,9 @@ msgstr "La configuración del feed de Google se ha guardado."
 
 msgid "plugins.generic.googleBooks.message.behaviorSettingsSaved"
 msgstr "El comportamiento de sincronización se ha guardado."
+
+msgid "plugins.generic.googleBooks.message.invalidBisacCode"
+msgstr "El código BISAC predeterminado debe contener tres letras y seis números, por ejemplo SOC000000."
 
 msgid "plugins.generic.googleBooks.message.discoveryQueued"
 msgstr "El descubrimiento del catálogo en Google Books se ha puesto en cola por lotes. El feed no necesita estar activo."

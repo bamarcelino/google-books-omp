@@ -13,22 +13,22 @@ source = source_path.read_text(encoding='utf-8')
 # packages can still be inspected with this maintenance wrapper.
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.3 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.13 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.14 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.3', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.13', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.14', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.13')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.14')
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.5 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.13 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.14 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.5', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.13', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.14', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.13')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.14')
 
 extra = r'''
 # 0.1.2.4+ live-onboarding regressions
@@ -120,6 +120,19 @@ check('positiveIntegerFromFormat' in enrichment and "'frontMatter'" in enrichmen
       'OMP page/extents metadata is not mapped without guessing')
 check('guessSubject' not in enrichment and 'guessPage' not in enrichment,
       'ONIX enrichment introduced synthetic metadata inference')
+check('defaultBisacCode' in enrichment and "'scheme' => '10'" in enrichment,
+      'validated manager-configured fallback BISAC support is missing')
+check("EditionType', 'DGO'" in builder and '$book->relatedProducts === []' in builder,
+      'digital-only products do not declare ONIX EditionType DGO')
+check("BiographicalNote', $contributor['biography']" in builder and 'contributorBiography' in mapper,
+      'OMP contributor biographies are not mapped to ONIX BiographicalNote')
+dashboard_handler = (ROOT / 'classes/DashboardHandler.php').read_text(encoding='utf-8')
+dashboard_template = (ROOT / 'templates/dashboard.tpl').read_text(encoding='utf-8')
+check('defaultBisacCode' in dashboard_handler and 'defaultBisacCode' in dashboard_template,
+      'default BISAC management setting is not exposed and persisted')
+sync_service = (ROOT / 'classes/Sync/GoogleBooksSyncService.php').read_text(encoding='utf-8')
+check('OnixEnrichmentService' in sync_service and '$this->enrichment->enrich($book, $submission, $context, $defaultBisacCode)' in sync_service,
+      'source-backed ONIX enrichments do not participate in synchronization fingerprints')
 
 # 0.1.2.9+ strict Google Play profile regressions
 check('ContributorRole A01 is required for Google Play Books' in validator,

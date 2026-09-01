@@ -1,19 +1,19 @@
-Google Books Integration for OMP 0.1.2.13 - Final validation
+Google Books Integration for OMP 0.1.2.14 - Final validation
 Date: 2026-09-01
 
-OK 239 core behavior/auth/secret/delivery assertions
+OK 245 core behavior/auth/secret/delivery assertions
 OK 8 large ONIX feed assertions
 OK 22 Google validation commercial-profile assertions
 OK 10 strict Google Play profile assertions
 OK 9 source-backed ONIX enrichment checks
 OK 43 repository assertions, including Google Play availability and delivery-file state
-OK 27 mapper/DAO/code-24 ISBN/contributor fallback assertions
+OK 28 mapper/DAO/code-24 ISBN/contributor fallback assertions
 OK 16 settings migration assertions
 OK 28 SFTP endpoint/diagnostic assertions
-OK 265 package/locale/security/source-contract checks
+OK 270 package/locale/security/source-contract checks
 OK 55 OMP 3.5 compatibility smoke assertions
-OK 40 dashboard operation/persistence/queue smoke assertions
-OK 762/762 total behavioral/contract assertions
+OK 42 dashboard operation/persistence/queue smoke assertions
+OK 776/776 total behavioral/contract assertions
 OK concurrent HTTPS pull and push/staging transport availability
 OK real ONIX validation sample: selected published anchor plus other real published OMP products, up to 10 unique ISBN records
 OK validation sample does not fabricate ISBNs or synthetic BookMetadata products
@@ -32,4 +32,7 @@ OK unresolved and failed discovery records always produce non-empty per-submissi
 OK free Google Play products retain UnpricedItemType 01 and never emit a zero PriceAmount
 OK authorless organized volumes promote every B01/B13/B21 organizer to a single Google-facing A01
 OK mixed author/editor records preserve original editor roles and OMP source metadata remains unchanged
+OK digital-only products without another ISBN-bearing format emit EditionType DGO
+OK OMP contributor biographies emit BiographicalNote and remain XML-safe
+OK manager-configured fallback BISAC is validated and never overrides a valid book-specific BISAC
 OK incomplete ONIX guard: missing closing ONIXMessage or unbalanced Product composites are rejected

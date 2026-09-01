@@ -1,5 +1,11 @@
 # Google Books Integration for OMP
 
+### 0.1.2.14 Google Play metadata enrichment
+
+Digital products without another ISBN-bearing publication format now declare ONIX `<EditionType>DGO</EditionType>` so Google can identify them as digital originals instead of requesting a print ISBN. When OMP contributor biographies are available, they are exported as `<BiographicalNote>` inside the corresponding contributor.
+
+The synchronization behavior panel now accepts an optional nine-character default BISAC code. A valid book-specific BISAC stored in OMP always wins; the configured default is used only when no valid per-book classification exists. The plugin does not infer categories from keywords or titles. Saving this setting advances the feed revision so Google receives the metadata change.
+
 ### 0.1.2.13 public ISBN reconciliation and useful run details
 
 When `volumes.list?q=isbn:` does not yet expose a newly ingested Partner Center book, discovery now checks Google's public `books?vid=ISBN...` bibliographic resolver. It extracts a Volume ID only from the resolved book page and accepts it only when that page's bibliographic ISBN row contains the exact normalized ISBN-13/ISBN-10 equivalent. The Books and Play links can therefore appear without waiting for the API search index, while unrelated title results remain impossible to link.
@@ -40,7 +46,7 @@ Publisher-neutral Google Books / Google Play Books synchronization for **Open Mo
 - License: **GNU GPL v3 or later**
 - Installation directory/product: `googleBooks`
 - Canonical OMP runtime/settings key: `googlebooksplugin`
-- Current release: `0.1.2.13`
+- Current release: `0.1.2.14`
 - Primary compatibility target: **OMP 3.5.0-5 LTS**
 
 ## What the plugin does
@@ -56,6 +62,7 @@ It provides:
 - detection of multiple exact Google Volume IDs using the same normalized ISBN, without automatically choosing an ambiguous public link;
 - a Google-specific ONIX 3.0 full metadata feed;
 - a Google-specific ONIX 3.0 rights/sales feed;
+- digital-original (`DGO`) declarations, OMP contributor biographies and an optional manager-configured fallback BISAC;
 - PDF, EPUB and JPEG/PNG cover delivery from existing OMP files through HTTP/HTTPS pull, Google-provided SFTP Dropbox, publisher SFTP, FTP/FTPS, Google Cloud Storage, or a protected local export;
 - initial ONIX validation sample generation from a real published OMP book;
 - incremental synchronization and force-refresh actions, with per-transport file fingerprints and delivery state;
@@ -197,6 +204,9 @@ Key rules implemented in this release include:
 - stable `RecordReference` based on canonical ISBN-13;
 - `ProductIDType` 15 for ISBN-13;
 - required title, contributors, publisher and publication date;
+- `EditionType` `DGO` when no other ISBN-bearing publication format is registered;
+- contributor `BiographicalNote` when a biography exists in OMP;
+- explicit per-book BISAC, with an optional validated manager-configured fallback;
 - precise UTC `SentDateTime`;
 - no empty XML tags;
 - ONIX series identifier type `02` for a valid normalized ISSN;
@@ -326,7 +336,9 @@ Then install/enable it in the OMP plugin manager so the database migration is ap
 
 ## Upgrade from earlier releases
 
-Do not uninstall an older release before updating. Upload 0.1.2.13 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration keeps the optional Google Play availability fields and delivery-file state required for incremental multi-transport synchronization current.
+Do not uninstall an older release before updating. Upload 0.1.2.14 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration keeps the optional Google Play availability fields and delivery-file state required for incremental multi-transport synchronization current.
+
+To categorize books that do not carry their own BISAC metadata in OMP, open **Synchronization behavior**, enter a valid nine-character default BISAC such as `SOC000000`, and save. Use a category that truthfully applies to every affected title; leave the field empty when no safe common category exists.
 
 After the upgrade, run **Discover catalogue in Google Books** once to populate Google Play availability for records discovered by earlier releases. A missing Play button means the Books API did not confirm an e-book acquisition link for the API request's country; it does not remove the Google Books link.
 

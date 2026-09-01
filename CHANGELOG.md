@@ -1,3 +1,12 @@
+## 0.1.2.14 - 2026-09-01
+
+- Declares `EditionType DGO` for digital products that have no other ISBN-bearing publication format, addressing Google's missing-print-product warning without inventing an ISBN.
+- Exports an OMP contributor biography as ONIX `BiographicalNote` when the source record contains one.
+- Adds an optional, validated default BISAC setting to the synchronization behavior panel; a valid book-specific OMP BISAC always has priority.
+- Keeps subject enrichment source-backed: no category is inferred from titles, keywords or disciplines, and no publisher-specific BISAC is hard-coded.
+- Advances the feed revision when behavior/BISAC settings are saved so changed ONIX is delivered on the next synchronization.
+- Bumps the plugin, public/dashboard assets and Google Books API User-Agent to 0.1.2.14; no database migration.
+
 ## 0.1.2.13 - 2026-09-01
 
 - Resolves newly ingested Google Books records through the public `vid=ISBN` bibliographic page when `volumes.list?q=isbn:` still returns no item.

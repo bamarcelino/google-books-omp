@@ -188,6 +188,7 @@ namespace MapperSmoke {
         public function __construct(
             private int $userGroupId = 7,
             private string $fullName = 'Editor Example',
+            private string $biography = '<p>Researcher &amp; editor.</p>',
         ) {
         }
 
@@ -209,6 +210,11 @@ namespace MapperSmoke {
         public function hasVerifiedOrcid(): bool
         {
             return true;
+        }
+
+        public function getLocalizedBiography(): string
+        {
+            return $this->biography;
         }
     }
 
@@ -611,6 +617,7 @@ namespace {
     mapperCheck($book !== null && ($book->salesRights[0]['regionsIncluded'] ?? []) === ['WORLD'], 'default worldwide rights were not added for a free title');
     mapperCheck($book !== null && ($book->contributors[0]['roles'] ?? []) === ['A01'], 'sole volume editor was not promoted to Google-facing A01');
     mapperCheck($book !== null && ($book->contributors[0]['orcid'] ?? null) === 'https://orcid.org/0000-0002-1825-0097', 'verified ORCID was not preserved');
+    mapperCheck($book !== null && ($book->contributors[0]['biography'] ?? null) === 'Researcher & editor.', 'localized contributor biography was not cleaned and preserved');
 
     $mapper = new OmpBookMapper();
     $contributorsMethod = new \ReflectionMethod($mapper, 'contributors');

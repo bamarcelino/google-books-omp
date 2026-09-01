@@ -243,10 +243,11 @@ final class OmpBookMapper
         ];
     }
 
-    /** @return array<int,array{role:string,roles:array<int,string>,name:string,orcid:?string}> */
+    /** @return array<int,array{role:string,roles:array<int,string>,name:string,orcid:?string,biography:?string}> */
     private function contributors(object $publication): array
     {
         $contributors = [];
+        $locale = (string) ($publication->getData('locale') ?: '');
         $roleMap = [
             'default.groups.name.author' => 'A01',
             'default.groups.name.volumeEditor' => 'B01',
@@ -277,10 +278,34 @@ final class OmpBookMapper
                 'roles' => [$role],
                 'name' => $this->cleanText((string) $author->getFullName()),
                 'orcid' => $orcid,
+                'biography' => $this->contributorBiography($author, $locale),
             ];
         }
 
         return $this->promoteOrganizersWhenAuthorMissing($contributors);
+    }
+
+    private function contributorBiography(object $author, string $locale): ?string
+    {
+        $value = null;
+        if (method_exists($author, 'getLocalizedBiography')) {
+            try {
+                $value = $author->getLocalizedBiography();
+            } catch (Throwable) {
+                // Fall through to the canonical localized-data accessors.
+            }
+        }
+        if (!$this->hasValue($value)) {
+            $value = $this->localizedData($author, 'biography', $locale);
+        }
+        if (is_array($value)) {
+            $value = $value[$locale] ?? (reset($value) ?: null);
+        }
+        if (!is_string($value) && !is_numeric($value)) {
+            return null;
+        }
+        $value = $this->cleanText((string) $value);
+        return $value !== '' ? $value : null;
     }
 
     /**
@@ -291,8 +316,8 @@ final class OmpBookMapper
      * The source OMP contributor groups remain unchanged, and mixed records
      * that already contain an author keep their original editor roles.
      *
-     * @param array<int,array{role:string,roles:array<int,string>,name:string,orcid:?string}> $contributors
-     * @return array<int,array{role:string,roles:array<int,string>,name:string,orcid:?string}>
+     * @param array<int,array{role:string,roles:array<int,string>,name:string,orcid:?string,biography?:?string}> $contributors
+     * @return array<int,array{role:string,roles:array<int,string>,name:string,orcid:?string,biography?:?string}>
      */
     private function promoteOrganizersWhenAuthorMissing(array $contributors): array
     {

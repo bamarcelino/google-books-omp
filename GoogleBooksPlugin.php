@@ -44,7 +44,7 @@ final class GoogleBooksPlugin extends GenericPlugin
     public const PRODUCT_NAME = 'googleBooks';
     public const DASHBOARD_PAGE = 'googlebooks';
     public const FEED_PAGE = 'googlebooksfeed';
-    public const VERSION = '0.1.2.13';
+    public const VERSION = '0.1.2.14';
 
     public function register($category, $path, $mainContextId = null)
     {
