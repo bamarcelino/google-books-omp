@@ -66,8 +66,12 @@ final class GoogleBooksSyncService
         if ($books === []) {
             // A published monograph with no valid ISBN is not a Google API
             // failure. Record it as skipped so large legacy catalogues do not
-            // misleadingly report hundreds of errors.
+            // misleadingly report hundreds of errors, while retaining enough
+            // context for the editor to repair the exact OMP record.
             $result['skipped'] = 1;
+            $result['details'][] = 'Published book "' . $this->submissionTitle($submission)
+                . '" has no detectable valid ISBN-10 or ISBN-13 in its OMP publication-format identification codes'
+                . ' (supported ONIX List 5 types: 02, 03, 15 and 24).';
             return $result;
         }
 
@@ -384,5 +388,25 @@ final class GoogleBooksSyncService
     {
         $value = trim((string) $this->plugin->getSetting($contextId, $name));
         return $value !== '' ? $value : null;
+    }
+
+    private function submissionTitle(Submission $submission): string
+    {
+        try {
+            $publication = $submission->getCurrentPublication();
+            $title = $publication ? (string) $publication->getLocalizedTitle() : '';
+        } catch (Throwable) {
+            $title = '';
+        }
+
+        $title = html_entity_decode(strip_tags($title), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $title = trim(preg_replace('/\s+/u', ' ', $title) ?? $title);
+        if ($title === '') {
+            return 'Untitled submission #' . $submission->getId();
+        }
+
+        return function_exists('mb_substr')
+            ? mb_substr($title, 0, 300, 'UTF-8')
+            : substr($title, 0, 300);
     }
 }

@@ -1,13 +1,13 @@
-# Google Books Integration for OMP 0.1.2.14 - Validation Report
+# Google Books Integration for OMP 0.1.2.15 - Validation Report
 
 **Target:** Open Monograph Press 3.5.x, validated against OMP/PKP 3.5.0-5 public contracts  
 **Author:** Bruno Cesar Alves Marcelino  
 **Organization:** Scientia International  
-**Release date:** 2026-09-01
+**Release date:** 2026-09-02
 
 ## Scope
 
-Release 0.1.2.14 retains the transport-neutral delivery layer, encrypted API/transport secrets, strict Google ONIX validation, organized-volume `A01` compatibility and exact-ISBN public Books resolver. It adds digital-original `DGO` declarations when no related ISBN exists, source-backed contributor biographies and a validated manager-configured fallback BISAC that never overrides book-specific classification.
+Release 0.1.2.15 retains the transport-neutral delivery layer, encrypted API/transport secrets, strict Google ONIX validation, organized-volume `A01` compatibility, exact-ISBN public Books resolver and source-backed ONIX enrichment. It adds actionable discovery details for every published OMP submission skipped because no valid ISBN can be detected, without misclassifying that metadata omission as a Google API failure.
 
 Validation covers plugin code, OMP-facing contracts, identifier normalization, Google Books discovery behavior, ONIX generation, delivery-manifest generation, reversible outbound-secret protection, database state, transport configuration, localization, queue integration and distribution archives. It does not claim that Google has accepted a real publisher feed or credentials; Google-side onboarding remains external.
 
@@ -138,7 +138,7 @@ The final source tree passes:
 
 | Suite | Result |
 | --- | ---: |
-| Core behavior, identifiers, Google matching, auth/secret and delivery contracts | 245/245 |
+| Core behavior, identifiers, Google matching, auth/secret and delivery contracts | 246/246 |
 | Large ONIX feed | 8/8 |
 | Google commercial validation profile | 22/22 |
 | Strict Google Play profile | 10/10 |
@@ -147,10 +147,10 @@ The final source tree passes:
 | OMP mapper/DAO/code-24 ISBN regression | 28/28 |
 | Plugin-settings migration | 16/16 |
 | SFTP endpoint normalization and staged diagnostic regression | 28/28 |
-| Package, locale, security and source contracts | 270/270 |
+| Package, locale, security and source contracts | 271/271 |
 | OMP 3.5 compatibility smoke suite | 55/55 |
 | Dashboard POST/persistence/queue smoke suite | 42/42 |
-| **Total behavioral/contract assertions** | **776/776** |
+| **Total behavioral/contract assertions** | **778/778** |
 
 In addition, every PHP file in the release is linted with `php -l`; any syntax error fails packaging.
 

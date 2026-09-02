@@ -1,5 +1,9 @@
 # Google Books Integration for OMP
 
+### 0.1.2.15 identifiable missing-ISBN records
+
+Catalogue discovery now records the OMP submission number and localized book title whenever a published monograph has no detectable valid ISBN in its publication-format identification codes. The run remains successfully completed because this is a metadata omission rather than a Google API failure, but **Execution details** now tells the editor exactly which records require correction and lists the supported ONIX List 5 identifier types (`02`, `03`, `15` and `24`).
+
 ### 0.1.2.14 Google Play metadata enrichment
 
 Digital products without another ISBN-bearing publication format now declare ONIX `<EditionType>DGO</EditionType>` so Google can identify them as digital originals instead of requesting a print ISBN. When OMP contributor biographies are available, they are exported as `<BiographicalNote>` inside the corresponding contributor.
@@ -46,7 +50,7 @@ Publisher-neutral Google Books / Google Play Books synchronization for **Open Mo
 - License: **GNU GPL v3 or later**
 - Installation directory/product: `googleBooks`
 - Canonical OMP runtime/settings key: `googlebooksplugin`
-- Current release: `0.1.2.14`
+- Current release: `0.1.2.15`
 - Primary compatibility target: **OMP 3.5.0-5 LTS**
 
 ## What the plugin does
@@ -336,7 +340,7 @@ Then install/enable it in the OMP plugin manager so the database migration is ap
 
 ## Upgrade from earlier releases
 
-Do not uninstall an older release before updating. Upload 0.1.2.14 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration keeps the optional Google Play availability fields and delivery-file state required for incremental multi-transport synchronization current.
+Do not uninstall an older release before updating. Upload 0.1.2.15 as an in-place plugin upgrade so existing Google Books state, discovery links, feed settings, diagnostics and run history are preserved. The idempotent schema migration keeps the optional Google Play availability fields and delivery-file state required for incremental multi-transport synchronization current.
 
 To categorize books that do not carry their own BISAC metadata in OMP, open **Synchronization behavior**, enter a valid nine-character default BISAC such as `SOC000000`, and save. Use a category that truthfully applies to every affected title; leave the field empty when no safe common category exists.
 

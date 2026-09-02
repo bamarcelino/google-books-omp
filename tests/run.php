@@ -615,6 +615,7 @@ check(str_contains($syncSource, 'retireMissingProducts') && str_contains($syncSo
 check(str_contains($syncSource, 'retireMissingSubmissions'), 'Full catalog synchronization does not reconcile unpublished books');
 check(substr_count($syncSource, "\$result['retryable']++") >= 2 && str_contains($syncSource, 'markDiscoveryError'), 'Transient or not-yet-indexed Google checks are not consistently marked retryable');
 check(str_contains($syncSource, "'details' => []") && str_contains($syncSource, 'no exact Volume returned'), 'Not-found discovery does not produce an informative per-ISBN run detail');
+check(str_contains($syncSource, 'has no detectable valid ISBN-10 or ISBN-13') && str_contains($syncSource, '$this->submissionTitle($submission)'), 'Published books skipped for missing ISBN are not identified by title in discovery run details');
 $apiSource = file_get_contents(dirname(__DIR__) . '/classes/Api/GoogleBooksApiClient.php');
 check(str_contains($apiSource, 'global lookup') && str_contains($apiSource, '$withPartner && $this->partnerId'), 'Google discovery may be partner-restricted before checking the global catalogue');
 $catalogDiscoveryJobSource = file_get_contents(dirname(__DIR__) . '/classes/Jobs/CatalogDiscoveryJob.php');

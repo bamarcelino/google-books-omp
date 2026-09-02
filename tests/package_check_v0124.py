@@ -13,22 +13,22 @@ source = source_path.read_text(encoding='utf-8')
 # packages can still be inspected with this maintenance wrapper.
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.3 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.14 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.15 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.3', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.14', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.15', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.14')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.3', 'GoogleBooksIntegrationForOMP/0.1.2.15')
 source = source.replace(
     "check(vals.get('lazy-load') == '0', '0.1.2.5 must remain non-lazy to repair legacy enabled settings')",
-    "check(vals.get('lazy-load') == '0', '0.1.2.14 must remain non-lazy to repair legacy enabled settings')",
+    "check(vals.get('lazy-load') == '0', '0.1.2.15 must remain non-lazy to repair legacy enabled settings')",
 )
 source = source.replace(
     "check(vals.get('release') == '0.1.2.5', 'version.xml release mismatch')",
-    "check(vals.get('release') == '0.1.2.14', 'version.xml release mismatch')",
+    "check(vals.get('release') == '0.1.2.15', 'version.xml release mismatch')",
 )
-source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.14')
+source = source.replace('GoogleBooksIntegrationForOMP/0.1.2.5', 'GoogleBooksIntegrationForOMP/0.1.2.15')
 
 extra = r'''
 # 0.1.2.4+ live-onboarding regressions
@@ -139,6 +139,9 @@ check('ContributorRole A01 is required for Google Play Books' in validator,
       'Google profile validator does not require an A01 author')
 check('promoteOrganizersWhenAuthorMissing' in mapper and 'ORGANIZER_ROLES' in mapper,
       'organized volumes do not receive the Google-facing A01 fallback')
+check('has no detectable valid ISBN-10 or ISBN-13' in sync_service
+      and '$this->submissionTitle($submission)' in sync_service,
+      'missing-ISBN published submissions are not identified in discovery run details')
 check('GOOGLE_SUBJECT_SCHEMES' in validator and "'10'" in validator and "'78'" in validator,
       'Google-supported subject scheme whitelist is missing')
 check('must contain SubjectCode' in validator,

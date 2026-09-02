@@ -1,3 +1,11 @@
+## 0.1.2.15 - 2026-09-02
+
+- Identifies every published OMP submission skipped during catalogue discovery because no valid ISBN-10/ISBN-13 could be detected.
+- Persists the submission number, localized title and supported publication-format identifier types in the discovery run details.
+- Keeps missing-ISBN records classified as skipped metadata omissions rather than Google API failures, so otherwise successful runs remain `completed`.
+- Adds a diagnostic for a submission that becomes unavailable or unpublished while a resumable discovery batch is running.
+- Bumps the plugin, public/dashboard assets and Google Books API User-Agent to 0.1.2.15; no database migration.
+
 ## 0.1.2.14 - 2026-09-01
 
 - Declares `EditionType DGO` for digital products that have no other ISBN-bearing publication format, addressing Google's missing-print-product warning without inventing an ISBN.

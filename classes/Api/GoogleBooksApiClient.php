@@ -184,7 +184,7 @@ final class GoogleBooksApiClient
                     'connect_timeout' => 5,
                     'http_errors' => true,
                     'allow_redirects' => true,
-                    'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.14'],
+                    'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.15'],
                 ]);
                 $html = (string) $client->get($url)->getBody();
             }
@@ -294,7 +294,7 @@ final class GoogleBooksApiClient
             'timeout' => 12,
             'connect_timeout' => 5,
             'http_errors' => true,
-            'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.14'],
+            'headers' => ['User-Agent' => 'GoogleBooksIntegrationForOMP/0.1.2.15'],
         ]);
 
         $last = null;

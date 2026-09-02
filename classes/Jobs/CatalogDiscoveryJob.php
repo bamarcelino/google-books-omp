@@ -84,6 +84,8 @@ final class CatalogDiscoveryJob extends GoogleBooksJob
                 $submission = Repo::submission()->get((int) $submissionId);
                 if (!$submission || (int) $submission->getData('contextId') !== $this->contextId || (int) $submission->getData('status') !== Submission::STATUS_PUBLISHED) {
                     $counters['skipped']++;
+                    $errors[] = 'Submission ' . $submissionId
+                        . ': skipped because it is no longer an available published book in this press.';
                     continue;
                 }
                 $result = $service->discoverSubmission($submission, $context);
