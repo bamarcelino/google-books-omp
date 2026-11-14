@@ -675,7 +675,12 @@ check(str_contains($discoveryJobSource, 'BATCH_SIZE = 10') && str_contains($disc
 check(str_contains($mapperSource, 'mapDiscoverySubmission') && str_contains($mapperSource, 'Discovery is deliberately independent from feed eligibility'), 'Mapper lacks an API-only discovery path for historical books.');
 check(str_contains($mapperSource, "DAORegistry::getDAO('PublicationFormatDAO')") && str_contains($mapperSource, 'getByPublicationId'), 'Mapper does not load OMP 3.5 publication formats from PublicationFormatDAO.');
 check(str_contains($mapperSource, "'24' => 30") && str_contains($mapperSource, 'getFormatDiscoveryIsbns13'), 'Mapper does not recognize co-publisher ISBN-13 (ONIX code 24) during discovery.');
-check(str_contains($pluginSource, 'SubmissionDiscoveryJob::dispatchAfterResponse') && str_contains($pluginSource, 'canAutoDiscover'), 'Published metadata changes do not trigger independent API discovery.');
+check(str_contains($pluginSource, '$this->queueWhenRequestEnds(SubmissionDiscoveryJob::class') && str_contains($pluginSource, 'canAutoDiscover'), 'Published metadata changes do not trigger independent API discovery.');
+// OMP's container has no terminating() callbacks: Laravel's after-response dispatch fails every request that reaches it.
+check(!preg_match('/::dispatchAfterResponse\s*\(|->afterResponse\s*\(/', $pluginSource) && str_contains($pluginSource, 'register_shutdown_function'), 'The plugin dispatches jobs through Laravel after-response callbacks, which OMP does not provide.');
+foreach (glob(dirname(__DIR__) . '/classes/*/*.php') as $sourceFile) {
+    check(!preg_match('/::dispatchAfterResponse\s*\(|->afterResponse\s*\(/', (string) file_get_contents($sourceFile)), basename($sourceFile) . ' uses Laravel after-response callbacks, which OMP does not provide.');
+}
 check(str_contains($pluginSource, "'booksUrl' => \$url") && str_contains($pluginSource, "'playUrl' => \$this->publicGooglePlayUrl(\$record)"), 'Public book details do not receive the Google Books and optional Google Play links.');
 $publicBooksUrlSource = explode('private function publicGooglePlayUrl', explode('private function publicGoogleBooksUrl', $pluginSource, 2)[1] ?? '', 2)[0] ?? '';
 check(

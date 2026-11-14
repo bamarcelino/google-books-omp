@@ -1,4 +1,4 @@
-# Google Books Integration for OMP 0.1.2.15 - Validation Report
+# Google Books Integration for OMP 0.1.2.16 - Validation Report
 
 **Target:** Open Monograph Press 3.5.x, validated against OMP/PKP 3.5.0-5 public contracts  
 **Author:** Bruno Cesar Alves Marcelino  
@@ -7,7 +7,7 @@
 
 ## Scope
 
-Release 0.1.2.15 retains the transport-neutral delivery layer, encrypted API/transport secrets, strict Google ONIX validation, organized-volume `A01` compatibility, exact-ISBN public Books resolver and source-backed ONIX enrichment. It adds actionable discovery details for every published OMP submission skipped because no valid ISBN can be detected, without misclassifying that metadata omission as a Google API failure.
+Release 0.1.2.16 retains the transport-neutral delivery layer, encrypted API/transport secrets, strict Google ONIX validation, organized-volume `A01` compatibility, exact-ISBN public Books resolver and source-backed ONIX enrichment. It adds actionable discovery details for every published OMP submission skipped because no valid ISBN can be detected, without misclassifying that metadata omission as a Google API failure.
 
 Validation covers plugin code, OMP-facing contracts, identifier normalization, Google Books discovery behavior, ONIX generation, delivery-manifest generation, reversible outbound-secret protection, database state, transport configuration, localization, queue integration and distribution archives. It does not claim that Google has accepted a real publisher feed or credentials; Google-side onboarding remains external.
 

@@ -41,7 +41,8 @@ namespace PKP\jobs {
 
             public static function dispatchAfterResponse(...$arguments): PendingDispatch
             {
-                return new PendingDispatch();
+                // What OMP really does: its container is not a Laravel application.
+                throw new \Error('Call to undefined method PKP\\core\\PKPContainer::terminating()');
             }
 
             abstract public function handle();

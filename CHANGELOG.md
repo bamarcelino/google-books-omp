@@ -1,3 +1,11 @@
+## 0.1.2.16 - 2026-11-14
+
+- Fixes HTTP 500 (`Call to undefined method PKP\core\PKPContainer::terminating()`) on every save of a published monograph, on publication and on changes to public proof files, when automatic discovery or synchronization is enabled. OMP had already stored the change when the error was raised.
+- Background jobs are now queued by a shutdown function once the request has finished. Laravel's `dispatchAfterResponse()` needs application `terminating()` callbacks, which OMP's service container does not provide.
+- A job that cannot be queued is logged and no longer interrupts the editor's request.
+- The test doubles now fail the way OMP does when after-response dispatch is used, and the suite rejects any new use of it.
+- Bumps the plugin, public/dashboard assets and Google Books API User-Agent to 0.1.2.16; no database migration.
+
 ## 0.1.2.15 - 2026-09-02
 
 - Identifies every published OMP submission skipped during catalogue discovery because no valid ISBN-10/ISBN-13 could be detected.

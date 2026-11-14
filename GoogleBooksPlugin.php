@@ -44,7 +44,7 @@ final class GoogleBooksPlugin extends GenericPlugin
     public const PRODUCT_NAME = 'googleBooks';
     public const DASHBOARD_PAGE = 'googlebooks';
     public const FEED_PAGE = 'googlebooksfeed';
-    public const VERSION = '0.1.2.15';
+    public const VERSION = '0.1.2.16';
 
     public function register($category, $path, $mainContextId = null)
     {
@@ -155,6 +155,31 @@ final class GoogleBooksPlugin extends GenericPlugin
         return false;
     }
 
+    /**
+     * Queue a job once the current request has finished its own work.
+     *
+     * OMP's service container is not a Laravel application: it has no
+     * terminating() callbacks, which Laravel's dispatchAfterResponse() needs.
+     * Calling it raised "Call to undefined method PKPContainer::terminating()"
+     * and turned every save of a published monograph into an HTTP 500, after
+     * OMP had already stored the change. A shutdown function gives the same
+     * guarantee this plugin relies on: the job is created only after OMP has
+     * committed the record that triggered it. A failure to queue is logged
+     * and never reaches the editor.
+     *
+     * @param class-string $job
+     */
+    private function queueWhenRequestEnds(string $job, mixed ...$arguments): void
+    {
+        register_shutdown_function(static function () use ($job, $arguments): void {
+            try {
+                $job::dispatch(...$arguments);
+            } catch (\Throwable $exception) {
+                error_log('Google Books: a background job could not be queued (' . $exception::class . ').');
+            }
+        });
+    }
+
     public function publicationPublished(PublicationPublished $event): void
     {
         $contextId = (int) $event->context->getId();
@@ -164,10 +189,10 @@ final class GoogleBooksPlugin extends GenericPlugin
         // feed. A press can therefore reconcile its existing catalogue first
         // and only configure Automated Content Fetching later.
         if ($this->canAutoDiscover($contextId)) {
-            SubmissionDiscoveryJob::dispatchAfterResponse($contextId, $submissionId);
+            $this->queueWhenRequestEnds(SubmissionDiscoveryJob::class, $contextId, $submissionId);
         }
         if ($this->canAutoSync($contextId)) {
-            SubmissionSyncJob::dispatchAfterResponse($contextId, $submissionId, false);
+            $this->queueWhenRequestEnds(SubmissionSyncJob::class, $contextId, $submissionId, false);
         }
     }
 
@@ -194,10 +219,10 @@ final class GoogleBooksPlugin extends GenericPlugin
 
         $submissionId = (int) $submission->getId();
         if ($this->canAutoDiscover($contextId)) {
-            SubmissionDiscoveryJob::dispatchAfterResponse($contextId, $submissionId);
+            $this->queueWhenRequestEnds(SubmissionDiscoveryJob::class, $contextId, $submissionId);
         }
         if ($this->canAutoSync($contextId)) {
-            SubmissionSyncJob::dispatchAfterResponse($contextId, $submissionId, false);
+            $this->queueWhenRequestEnds(SubmissionSyncJob::class, $contextId, $submissionId, false);
         }
     }
 
@@ -234,7 +259,7 @@ final class GoogleBooksPlugin extends GenericPlugin
         // file record. Defer dispatch until the HTTP response is complete so
         // synchronous queue installations also map the committed revision,
         // price, visibility and association state instead of stale values.
-        SubmissionSyncJob::dispatchAfterResponse($contextId, $submissionId, false);
+        $this->queueWhenRequestEnds(SubmissionSyncJob::class, $contextId, $submissionId, false);
         return false;
     }
 
