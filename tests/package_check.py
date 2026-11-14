@@ -198,7 +198,10 @@ check("PluginRegistry::loadPlugin('generic', GoogleBooksPlugin::PRODUCT_NAME" in
 check('max(time(), $current + 1)' in plugin, 'monotonic catalog feed revision contract missing')
 check(all(hook in plugin for hook in ["SubmissionFile::add", "SubmissionFile::edit", "SubmissionFile::delete"]), 'published proof-file synchronization hooks missing')
 check('SubmissionFile::SUBMISSION_FILE_PROOF' in plugin and 'Application::ASSOC_TYPE_PUBLICATION_FORMAT' in plugin, 'proof-file hook filtering contract missing')
-check(plugin.count('SubmissionSyncJob::dispatchAfterResponse') >= 3 and plugin.count('SubmissionDiscoveryJob::dispatchAfterResponse') >= 2, 'automatic OMP synchronization/discovery is not deferred until committed request state')
+# Deferred with a shutdown function: OMP's container has no terminating() callbacks, so Laravel's
+# dispatchAfterResponse() raises "Call to undefined method PKPContainer::terminating()" there.
+check(plugin.count('$this->queueWhenRequestEnds(SubmissionSyncJob::class') >= 3 and plugin.count('$this->queueWhenRequestEnds(SubmissionDiscoveryJob::class') >= 2
+      and 'register_shutdown_function' in plugin and '::dispatchAfterResponse(' not in plugin, 'automatic OMP synchronization/discovery is not deferred until committed request state')
 check('SubmissionFile::edit is emitted before OMP persists' in plugin, 'proof-file pre-persistence hook safeguard is undocumented')
 
 dashboard = (ROOT / 'classes/DashboardHandler.php').read_text(encoding='utf-8')
